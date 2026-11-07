@@ -1,0 +1,87 @@
+name: Deploy preview
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+  push:
+    branches-ignore: [main]
+
+concurrency:
+  group: preview-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    if: github.event_name == 'push' || github.event.action != 'closed'
+    runs-on: [self-hosted, nova-box]
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Derive slug
+        id: meta
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            REF="${{ github.event.pull_request.head.sha }}"
+            NAME="${{ github.head_ref }}"
+          else
+            REF="${{ github.sha }}"
+            NAME="${{ github.ref_name }}"
+          fi
+          SLUG=$(echo "$NAME" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//; s/-+/-/g' | cut -c1-48)
+          echo "ref=$REF" >> "$GITHUB_OUTPUT"
+          echo "slug=$SLUG" >> "$GITHUB_OUTPUT"
+          echo "url=https://novabox.recursivefunctions.dev/p/$SLUG/" >> "$GITHUB_OUTPUT"
+
+      - name: Sync origin into deploy checkout
+        run: |
+          set -euo pipefail
+          cd /home/ray/code/Nova2026
+          git fetch --prune origin
+
+      - name: Upsert preview
+        id: deploy
+        run: |
+          set -euo pipefail
+          /home/ray/code/Nova2026/deploy/deploy-preview.sh upsert "${{ steps.meta.outputs.ref }}" "${{ steps.meta.outputs.slug }}"
+
+      - name: Comment preview URL on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const url = '${{ steps.meta.outputs.url }}';
+            const body = `Preview: ${url}`;
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find(c => c.user.type === 'Bot' && c.body.startsWith('Preview: '));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+
+  destroy:
+    if: github.event_name == 'pull_request' && github.event.action == 'closed'
+    runs-on: [self-hosted, nova-box]
+    steps:
+      - name: Destroy preview
+        run: |
+          set -euo pipefail
+          NAME="${{ github.head_ref }}"
+          SLUG=$(echo "$NAME" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//; s/-+/-/g' | cut -c1-48)
+          /home/ray/code/Nova2026/deploy/deploy-preview.sh destroy "$SLUG"

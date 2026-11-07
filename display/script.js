@@ -1,5 +1,7 @@
 const BOX_ID = new URLSearchParams(location.search).get("box") || "BOX-01";
 const POLL_MS = 1000;
+const PREVIEW = location.pathname.match(/^\/p\/([^/]+)/);
+const BASE = PREVIEW ? `/p/${PREVIEW[1]}` : "";
 
 const els = {
   id: document.getElementById("order-id"),
@@ -17,13 +19,13 @@ function setConnected(ok) {
   els.connected.style.color = ok ? "#4ade80" : "#f87171";
 }
 
-function showPickupUrl(qrVisible) {
-  return `${location.origin}/pickup/${encodeURIComponent(BOX_ID)}`;
+function showPickupUrl() {
+  return `${location.origin}${BASE}/pickup/${encodeURIComponent(BOX_ID)}`;
 }
 
 async function poll() {
   try {
-    const res = await fetch(`/boxes/${encodeURIComponent(BOX_ID)}`, { cache: "no-store" });
+    const res = await fetch(`${BASE}/boxes/${encodeURIComponent(BOX_ID)}`, { cache: "no-store" });
     if (!res.ok) throw new Error("bad status " + res.status);
     const box = await res.json();
     setConnected(true);
