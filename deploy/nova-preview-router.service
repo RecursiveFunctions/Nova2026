@@ -1,0 +1,18 @@
+[Unit]
+Description=NOVA path router (novabox.recursivefunctions.dev / and /p/<slug>/)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/ray/code/Nova2026
+ExecStart=/usr/bin/python3 /home/ray/code/Nova2026/deploy/preview-router.py
+Restart=on-failure
+RestartSec=2
+Environment=PYTHONUNBUFFERED=1
+Environment=NOVA_ROUTES=/home/ray/apps/nova2026/previews/routes.json
+Environment=NOVA_PREVIEW_ROUTER_PORT=8090
+Environment=NOVA_PROD_PORT=8081
+
+[Install]
+WantedBy=default.target

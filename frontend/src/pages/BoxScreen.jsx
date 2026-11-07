@@ -100,7 +100,6 @@ function BoxTag({ boxId }) {
         <span className="nova-logo">NOVA</span>
         <span className="nova-subtitle">SMART PICKUP SYSTEM</span>
       </div>
-
       <div className="nova-box-id">{boxId}</div>
     </header>
   );

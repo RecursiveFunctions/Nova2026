@@ -53,6 +53,8 @@ _PAGE = """<!doctype html>
 </main>
 <script>
   var boxId = __BOX_JSON__;
+  var preview = location.pathname.match(/^\/p\/([^/]+)/);
+  var base = preview ? ("/p/" + preview[1]) : "";
   var form = document.getElementById("f"), input = document.getElementById("code");
   var btn = document.getElementById("go"), result = document.getElementById("result");
   function show(text, kind) { result.textContent = text; result.className = kind; }
@@ -62,7 +64,7 @@ _PAGE = """<!doctype html>
     if (!code) { return; }
     btn.disabled = true;
     show("Checking...", "wait");
-    fetch("/boxes/" + encodeURIComponent(boxId) + "/verify-pickup", {
+    fetch(base + "/boxes/" + encodeURIComponent(boxId) + "/verify-pickup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ pickup_code: code })

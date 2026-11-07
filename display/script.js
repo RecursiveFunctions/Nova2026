@@ -1,34 +1,46 @@
+const BOX_ID = new URLSearchParams(location.search).get("box") || "BOX-01";
+const POLL_MS = 1000;
+const PREVIEW = location.pathname.match(/^\/p\/([^/]+)/);
+const BASE = PREVIEW ? `/p/${PREVIEW[1]}` : "";
 
-const API_URL = "http://172.26.20.68:8000";
-const BOX_ID = "BOX-01";
+const els = {
+  id: document.getElementById("order-id"),
+  priority: document.getElementById("priority"),
+  eta: document.getElementById("eta"),
+  status: document.getElementById("status"),
+  qr: document.getElementById("qr-area"),
+  qrImg: document.querySelector("#qr-area img"),
+  verifyText: document.getElementById("verify-text"),
+  connected: document.querySelector(".connected"),
+};
 
-async function updateDisplay() {
+function setConnected(ok) {
+  els.connected.textContent = ok ? "\u25CF CONNECTED" : "\u25CF OFFLINE";
+  els.connected.style.color = ok ? "#4ade80" : "#f87171";
+}
+
+function showPickupUrl() {
+  return `${location.origin}${BASE}/pickup/${encodeURIComponent(BOX_ID)}`;
+}
+
+async function poll() {
   try {
-    const response = await fetch(`${API_URL}/boxes/${BOX_ID}`);
+    const res = await fetch(`${BASE}/boxes/${encodeURIComponent(BOX_ID)}`, { cache: "no-store" });
+    if (!res.ok) throw new Error("bad status " + res.status);
+    const box = await res.json();
+    setConnected(true);
 
-    if (!response.ok) {
-      throw new Error("Could not get box data");
-    }
-
-    const box = await response.json();
-
-    document.getElementById("order-id").textContent =
-      box.order_id ? "#" + box.order_id : "NO ORDER";
-
-    document.getElementById("priority").textContent =
-      box.status === "PREPARING" ? "PREPARING" : "NOVA";
-
-    document.getElementById("eta").textContent = "--:--";
-
-    document.getElementById("status").textContent =
-      box.status;
-
-    console.log("Live box data:", box);
-  } catch (error) {
-    console.error("Backend connection error:", error);
-    document.getElementById("status").textContent = "OFFLINE";
+    els.id.textContent = box.order_id ? "#" + box.order_id : "\u2014";
+    els.priority.textContent = box.display_mode === "IDLE" ? "STANDBY" : (box.status || "") + " PRIORITY";
+    els.status.textContent = box.status || "UNKNOWN";
+    els.eta.textContent = "\u2014";
+    els.verifyText.textContent = "SCAN TO VERIFY";
+    els.qrImg.src = "order_qr.png";
+    els.qrImg.alt = "Pickup QR Code";
+  } catch (err) {
+    setConnected(false);
   }
 }
 
-updateDisplay();
-setInterval(updateDisplay, 2000);
+poll();
+setInterval(poll, POLL_MS);

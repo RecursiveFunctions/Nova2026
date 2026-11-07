@@ -1,0 +1,15 @@
+[Unit]
+Description=NOVA box display + API (novabox.recursivefunctions.dev)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/ray/code/Nova2026/display
+ExecStart=/home/ray/.local/bin/uv run --with fastapi --with uvicorn python app.py 8081
+Restart=on-failure
+RestartSec=2
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=default.target
