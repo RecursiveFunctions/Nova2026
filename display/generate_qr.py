@@ -2,7 +2,7 @@
 import qrcode
 
 # Demo QR code (not real authentication)
-data = "NOVA-DEMO-ORDER-1042"
+data = "http://172.26.20.68:8000/pickup/BOX-01"
 
 qr = qrcode.QRCode(
     version=1,
