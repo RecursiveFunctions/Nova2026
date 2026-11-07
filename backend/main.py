@@ -22,6 +22,7 @@ import db
 import logic
 from logic import ApiError
 from pickup_page import render_pickup_page, render_unknown_box_page
+import triage
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("pickupbox")
@@ -132,6 +133,13 @@ class DemoStaffIn(BaseModel):
     staff_name: Optional[str] = Field(default=None, max_length=80)
 
 
+class ReportTriageIn(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+    order_id: str = Field(min_length=1, max_length=40)
+    description: str = Field(min_length=1, max_length=2000)
+    category: Optional[str] = Field(default=None, max_length=80)
+
+
 # ------------------------------------------------------------------------------ routes
 
 @app.get("/", include_in_schema=False)
@@ -209,6 +217,15 @@ def pickup_page(box_id: str):
     if not exists:
         return HTMLResponse(render_unknown_box_page(box_id), status_code=404)
     return HTMLResponse(render_pickup_page(box_id))
+
+
+@app.post("/reports/triage")
+def report_triage(body: ReportTriageIn):
+    """Classify a customer complaint: category, severity, suggested action."""
+    text = body.description if not body.category else f"(hint: {body.category})\n{body.description}"
+    result = triage.classify(text)
+    result["order_id"] = body.order_id
+    return result
 
 
 # --------------------------------------------------------------------- demo-only routes

@@ -5,7 +5,7 @@ import react from "@vitejs/plugin-react";
 // So a phone needs just one address (http://<LAN-IP>:5173) and there is no CORS to configure.
 // xfwd adds X-Forwarded-For with the real client address: the backend uses it so that /demo/*
 // (courier codes) is not opened to the whole network just because the proxy itself is local.
-const API_PATHS = ["/orders", "/boxes", "/health", "/demo"];
+const API_PATHS = ["/orders", "/boxes", "/health", "/demo", "/reports"];
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");

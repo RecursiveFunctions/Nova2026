@@ -188,6 +188,10 @@ input, select {
 .nova-customer .nc-notice { font-size: 12px; background: #f1dfeb; padding: 12px; border-radius: 12px; }
 .nova-customer .nc-success { color: #166534; }
 .nova-customer .nc-error { color: #b42318; }
+.nova-customer .nc-severity { display: inline-block; font-size: 12px; font-weight: bold; letter-spacing: .04em; text-transform: uppercase; padding: 4px 8px; border-radius: 8px; }
+.nova-customer .nc-severity.low { background: #dcfce7; color: #166534; }
+.nova-customer .nc-severity.medium { background: #fef3c7; color: #92400e; }
+.nova-customer .nc-severity.high { background: #fee2e2; color: #991b1b; }
 .nova-customer .nc-description { white-space: pre-wrap; overflow-wrap: anywhere; }
 .nova-customer button:focus-visible, .nova-customer input:focus-visible, .nova-customer textarea:focus-visible, .nova-customer select:focus-visible { outline: 3px solid #175cd3; outline-offset: 3px; }
 
