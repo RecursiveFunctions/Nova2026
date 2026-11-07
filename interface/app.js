@@ -1,64 +1,277 @@
 'use strict';
-const app=document.querySelector('#app');
-let cameraStream=null, scanTimer=null, cameraRun=0;
-function stopCamera(){cameraRun++;if(scanTimer)clearTimeout(scanTimer);scanTimer=null;if(cameraStream)cameraStream.getTracks().forEach(track=>track.stop());cameraStream=null;}
-async function startCamera(){
- const message=document.querySelector('#camera-message');
- if(!window.isSecureContext||!navigator.mediaDevices?.getUserMedia){message.textContent='Camera access needs HTTPS on your phone. This HTTP preview cannot request permission. Use the box code below or open a secure hosted version.';return;}
- stopCamera();const run=cameraRun;
- try{
-  const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
-  if(run!==cameraRun||s.page!=='scan'){stream.getTracks().forEach(t=>t.stop());return;}
-  cameraStream=stream;const video=document.querySelector('#camera-video');video.srcObject=stream;video.hidden=false;await video.play();
-  if(run!==cameraRun)return;
-  document.querySelector('.scan-frame').hidden=true;
-  message.textContent='Camera enabled. Point it at the box QR code.';
-  document.querySelector('#camera-start').textContent='Restart camera';document.querySelector('#camera-stop').hidden=false;
-  if(!('BarcodeDetector' in window)){message.textContent='Camera enabled. Automatic QR reading is unavailable in this browser; use your phone’s Camera app or enter B-018 below.';return;}
-  const formats=await BarcodeDetector.getSupportedFormats();if(run!==cameraRun)return;
-  if(!formats.includes('qr_code')){message.textContent='Automatic QR reading is unavailable. Enter the box code below.';return;}
-  const detector=new BarcodeDetector({formats:['qr_code']});
-  const read=async()=>{if(run!==cameraRun||s.page!=='scan')return;try{const codes=await detector.detect(video);if(run!==cameraRun)return;for(const code of codes){const raw=code.rawValue.trim();let box=raw;try{box=new URL(raw).searchParams.get('box')||raw;}catch{}if(box.toUpperCase()==='B-018'){go('order');return;}message.textContent='QR read, but this demo only recognizes B-018 or a link with ?box=B-018.';}}catch{if(run===cameraRun)message.textContent='Could not read the QR yet. Hold it steady or enter the box code.';}if(run===cameraRun)scanTimer=setTimeout(read,350);};read();
- }catch(error){if(run!==cameraRun)return;stopCamera();message.textContent=error.name==='NotAllowedError'?'Camera permission was denied. Allow camera access in your browser’s site settings, then try again.':error.name==='NotFoundError'?'No camera found. Enter the box code below.':'Camera could not start. Close other camera apps and try again.';}
-}
-window.addEventListener('pagehide',stopCamera);
-document.addEventListener('visibilitychange',()=>{if(document.hidden)stopCamera();});
 
-const s={role:null,page:'roles',stage:0,wrong:false,issue:'',text:'',photo:null,report:false};
-const roles={seller:'Seller',driver:'Delivery partner',customer:'Customer'};
-const stages=['Ready for pickup','Awaiting pickup','Out for delivery','At your doorstep','Receipt confirmed','Box returning','Box returned'];
-const btn=(text,action,secondary=false)=>`<button class="${secondary?'secondary':'primary'}" data-do="${action}">${text}</button>`;
-const escapeText=t=>String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function order(){return `<article class="order"><div class="order-top"><strong>#1042</strong><span class="pill">${stages[s.stage]}</span></div><div class="meta">Green Bowl Kitchen<br>1 × Harvest bowl · 1 × Iced tea</div><hr class="line"><div class="chips"><span class="chip">▣ Box B-018</span><span class="chip">Delivery · Maya</span></div></article>`;}
-function nav(){return `<nav class="nav" aria-label="Main navigation"><button data-do="home" class="${s.page==='home'?'active':''}"><b>⌂</b>Home</button><button data-do="scan" class="${s.page==='scan'?'active':''}"><b>▣</b>Scan QR</button><button data-do="journey" class="${s.page==='journey'?'active':''}"><b>☷</b>Journey</button></nav>`;}
-function status(title,detail,kind='success'){return `<div class="status ${kind==='error'?'error':kind==='wait'?'wait':''}">${kind==='error'?'!':kind==='wait'?'◷':'✓'}</div><h1>${title}</h1><p>${detail}</p>`;}
-function render(){stopCamera();let body='';
- if(s.page==='roles')body=`<h1>Choose your role</h1>${[['seller','↗','Seller','Dispatch orders.'],['driver','➜','Delivery partner','Pick up and deliver orders.'],['customer','♡','Customer','Confirm receipt or report a problem.']].map(([r,i,t,d])=>`<button class="role-card" data-role="${r}"><span class="icon">${i}</span><span><strong>${t}</strong><small>${d}</small></span><span class="arrow">→</span></button>`).join('')}<p class="demo">Interactive prototype · no sign-in or backend</p>`;
- else if(s.page==='home') {body=`<section class="hero scan-hero"><div class="qr-mark" aria-hidden="true">▦</div><h1>Scan box QR</h1>${btn('Scan box QR','scan')}</section><div class="section-head"><h2>${s.role==='seller'?(s.stage===0?'Ready queue':'Recent orders'):'Your order'}</h2><span class="count">1 demo order</span></div>${order()}${btn('View order','order',true)}<details class="tools"><summary>Prototype controls</summary>${s.role==='driver'?'<label class="check"><input type="checkbox" id="wrong" '+(s.wrong?'checked':'')+'> Simulate wrong driver assignment</label>':''}${btn('Reset demo delivery','reset',true)}<p class="demo">Switch roles at the top to play through one shared delivery.</p></details>`;}
- else if(s.page==='scan')body=`<button class="back" data-do="home">← Back</button><h1>Scan box QR</h1><p>Place the box’s QR code inside the frame.</p><div class="scanner"><video id="camera-video" autoplay muted playsinline hidden></video><div class="scan-frame" aria-hidden="true">▦</div><div class="scan-line"></div></div><button class="primary" id="camera-start" data-do="camera">Allow camera &amp; scan</button><button class="secondary" id="camera-stop" data-do="stop-camera" hidden>Stop camera</button><p id="camera-message" class="demo" role="status">Camera is off. Permission is requested only when you tap above.</p>${btn('Simulate QR scan','order')}<label for="box-code">Or enter the box code</label><input id="box-code" type="text" placeholder="Try B-018" autocomplete="off">${btn('Find box','lookup',true)}<p id="lookup-error" role="alert"></p>`;
- else if(s.page==='journey')body=`<span class="eyebrow">ORDER #1042</span><h1>Order status</h1>${order()}<ol class="timeline">${['Ready at the kitchen','Dispatched by seller','Picked up by delivery partner','Arrival recorded','Received by customer','Box returning','Box returned'].map((t,i)=>`<li class="${i<=s.stage?'done':''}">${t}</li>`).join('')}</ol><p class="demo">Demo state · updates are shared only within this tab.</p>`;
- else if(s.page==='order'){
- body=`<button class="back" data-do="home">← Home</button>`;
- if(s.role==='seller') {if(s.stage===0)body+=`<span class="eyebrow">DISPATCH CHECK</span><h1>Ready to<br>head out?</h1><p>Check the order before confirming dispatch.</p>${order()}${btn('Confirm dispatch','dispatch')}`;else if(s.stage===5)body+=`${status('Back at the kitchen?','Confirm that box B-018 has been returned.')}${order()}${btn('Confirm box returned','return')}`;else body+=`${status(s.stage===6?'Box returned.':'Order sent out.',stages[s.stage])}${order()}${btn('Back to home','home')}`;}
- else if(s.role==='driver'){if(s.wrong)body+=`${status('Not your box.','Box B-018 isn’t assigned to you. Check the order before picking it up.','error')}${btn('Scan another box','scan')}`;else if(s.stage===0)body+=`${status('Waiting on the seller.','The seller needs to dispatch this order first.','wait')}${order()}`;else if(s.stage===1)body+=`${status('Correct box.','Order #1042 is assigned to you, Maya.')}${order()}${btn('Confirm pickup','pickup')}`;else if(s.stage===2)body+=`${status('At the doorstep?','Confirm arrival to let the customer know you’re here.','wait')}${order()}${btn('Confirm arrival','arrive')}`;else if(s.stage===3)body+=`${status('Waiting for receipt.','The customer must confirm they received their order.','wait')}${order()}${btn('Check confirmation','order',true)}`;else if(s.stage===4)body+=`${status('Handoff complete.','The customer confirmed receipt. Time to bring the box home.')}${order()}${btn('Start box return','start-return')}`;else if(s.stage===5)body+=`${status('Homeward bound.','Confirm once box B-018 is back at Green Bowl Kitchen.','wait')}${order()}${btn('Confirm box returned','return')}`;else body+=`${status('Box returned.','Box B-018 is back at the restaurant.')}${btn('Back to home','home')}`;}
- else {if(s.stage<2)body+=`${status('Awaiting pickup.','Your order is waiting for pickup.','wait')}${order()}`;else if(s.stage<4)body+=`<span class="eyebrow">YOUR DELIVERY</span><h1>Your order.<br>Your call.</h1><p>Check your items, then confirm you received them.</p>${order()}${btn('✓  Confirm received','receive')}${btn('Report a problem','issues',true)}`;else body+=`${status('Receipt confirmed.','Receipt confirmed. You can still tell us if something went wrong.')}${order()}${btn('Report a problem','issues',true)}${btn('Back to home','home',true)}`;}
- }
- else if(s.page==='issues')body=`<button class="back" data-do="order">← Order</button><h1>What went<br>wrong?</h1><p>Choose the option that fits best.</p>${['This isn’t my order','An item is missing','An item is incorrect','Food quality','Something else'].map((t,i)=>`<button class="role-card report-option" data-issue="${i}"><span><strong>${t}</strong></span><span class="arrow">→</span></button>`).join('')}`;
- else if(s.page==='report')body=`<button class="back" data-do="issues">← Problem type</button><span class="eyebrow">ORDER #1042</span><h1>Tell us<br>what happened.</h1><p>${escapeText(s.issue)}</p><label for="details">Details</label><textarea id="details" placeholder="What should the restaurant know?">${escapeText(s.text)}</textarea><label class="file">＋ Add a photo · optional<input type="file" id="photo" accept="image/*"></label>${s.photo?'<img class="photo" id="photo-preview" alt="Selected problem photo">':''}<p class="notice">Prototype: your report stays in this tab. Nothing is sent to the restaurant.</p>${btn('Save demo report','save-report')}<p id="report-error" role="alert"></p>`;
- else if(s.page==='saved')body=`${status('Feedback recorded.','Your demo report has been saved in this tab only.')}<article class="order"><h2>${escapeText(s.issue)}</h2><p>${escapeText(s.text)}</p>${s.photo?'<span class="chip">1 photo attached locally</span>':''}</article><p class="notice">No report was sent. Refreshing the page clears this demo.</p>${btn('Back to order','order')}`;
- else if(s.page==='success')body=`${status(s.title,s.detail)}${order()}${btn('Back to home','home')}${s.role==='customer'?btn('Report a problem','issues',true):''}`;
- app.innerHTML=`<header class="top"><div class="brand">pink parcel<span> ✳</span></div>${s.role?`<button class="role-switch" data-do="roles">${roles[s.role]} ⇄</button>`:''}</header>${body}${s.role&&s.page!=='roles'?nav():''}`;
- if(s.photo&&s.page==='report')document.querySelector('#photo-preview').src=s.photo;
+// Customer-only prototype. No request is sent to the backend yet.
+const app = document.querySelector('#app');
+const params = new URLSearchParams(window.location.search);
+
+const state = {
+  orderId: params.get('order') || '1042',
+  isDemoOrder: !params.get('order'),
+  page: 'order',
+  received: false,
+  category: '',
+  description: '',
+  photoUrl: null,
+  photoName: '',
+  error: '',
+  savedReport: null
+};
+
+const categories = [
+  'This isn’t my order',
+  'An item is missing',
+  'An item is incorrect',
+  'Food quality',
+  'Something else'
+];
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, character => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  })[character]);
 }
-function go(a){if(a==='camera'){startCamera();return;}if(a==='stop-camera'){stopCamera();render();return;}const transitions={dispatch:[0,1,'seller','Dispatch confirmed.','Order #1042 has left the ready queue.'],pickup:[1,2,'driver','Pickup confirmed.','Pickup confirmed for order #1042.'],arrive:[2,3,'driver','Arrival recorded.','Customer notification simulated.'],receive:[[2,3],4,'customer','Receipt confirmed.','Thank you! Your delivery partner can now return the box.'],'start-return':[4,5,'driver','Box return started.','Return box B-018 to Green Bowl Kitchen.'],return:[5,6,null,'Box returned.','One journey complete. Ready for the next.']};
- if(transitions[a]){const [from,to,role,title,detail]=transitions[a];if((Array.isArray(from)?from.includes(s.stage):s.stage===from)&&(!role?['driver','seller'].includes(s.role):s.role===role)&&!(s.role==='driver'&&s.wrong)){s.stage=to;s.title=title;s.detail=detail;s.page='success';}}
- else if(a==='lookup'){if(document.querySelector('#box-code').value.trim().toUpperCase()!=='B-018'){document.querySelector('#lookup-error').textContent='Box not found. Try demo code B-018.';return;}s.page='order';}
- else if(a==='save-report'){if(!s.text.trim()){document.querySelector('#report-error').textContent='Please add a short description.';return;}s.report=true;s.page='saved';}
- else if(a==='reset'){if(s.photo)URL.revokeObjectURL(s.photo);Object.assign(s,{stage:0,wrong:false,issue:'',text:'',photo:null,report:false,page:'home'});}
- else s.page=a;
- render();window.scrollTo(0,0);
+
+function button(label, action, secondary = false) {
+  return `
+    <button
+      type="button"
+      class="${secondary ? 'secondary' : 'primary'}"
+      data-action="${action}"
+    >
+      ${label}
+    </button>
+  `;
 }
-app.addEventListener('click',e=>{const r=e.target.closest('[data-role]');if(r){s.role=r.dataset.role;s.page='home';render();window.scrollTo(0,0);return;}const issue=e.target.closest('[data-issue]');if(issue){s.issue=['This isn’t my order','An item is missing','An item is incorrect','Food quality','Something else'][Number(issue.dataset.issue)];s.page='report';render();window.scrollTo(0,0);return;}const b=e.target.closest('[data-do]');if(b)go(b.dataset.do);});
-app.addEventListener('input',e=>{if(e.target.id==='details')s.text=e.target.value;});
-app.addEventListener('change',e=>{if(e.target.id==='wrong')s.wrong=e.target.checked;if(e.target.id==='photo'){const file=e.target.files[0];if(file&&!file.type.startsWith('image/'))return;if(s.photo)URL.revokeObjectURL(s.photo);s.photo=file?URL.createObjectURL(file):null;render();}});
+
+function orderCard() {
+  return `
+    <article class="order">
+      <div class="order-top">
+        <strong>#${escapeHtml(state.orderId)}</strong>
+        <span class="pill">
+          ${state.received ? 'Receipt confirmed · demo' : 'Awaiting receipt · demo'}
+        </span>
+      </div>
+      ${state.isDemoOrder ? `
+        <div class="meta">
+          Green Bowl Kitchen · sample order<br>
+          1 × Harvest bowl · 1 × Iced tea
+        </div>
+      ` : `
+        <p class="meta">Order details require a backend connection.</p>
+      `}
+    </article>
+  `;
+}
+
+function reportForm() {
+  return `
+    <button type="button" class="back" data-action="categories">
+      ← Problem type
+    </button>
+    <h1 id="page-title" tabindex="-1">Report a problem</h1>
+    <p>${escapeHtml(state.category)}</p>
+
+    <form id="report-form">
+      <label for="description">What happened?</label>
+      <textarea
+        id="description"
+        name="description"
+        maxlength="2000"
+        placeholder="Describe the problem with your order."
+        required
+      >${escapeHtml(state.description)}</textarea>
+
+      <label class="file" for="photo">
+        Add a photo · optional
+        <input id="photo" name="photo" type="file" accept="image/*">
+      </label>
+
+      ${state.photoUrl ? `
+        <img class="photo" src="${escapeHtml(state.photoUrl)}" alt="Selected problem photo">
+        <p class="meta">${escapeHtml(state.photoName)}</p>
+        ${button('Remove photo', 'remove-photo', true)}
+      ` : ''}
+
+      <p id="form-error" role="alert">${escapeHtml(state.error)}</p>
+      <p class="notice">
+        Demo only. Your report and photo stay in this tab and are not sent.
+      </p>
+      <button class="primary" type="submit">Save demo report</button>
+    </form>
+  `;
+}
+
+function render(focusHeading = false) {
+  let content = '';
+
+  if (state.page === 'order') {
+    content = `
+      <span class="eyebrow">CUSTOMER</span>
+      <h1 id="page-title" tabindex="-1">Your order</h1>
+      <p>Check your items before confirming receipt.</p>
+      ${orderCard()}
+      ${state.received ? `
+        <p class="notice" role="status">Receipt confirmed in this demo.</p>
+      ` : button('Confirm received', 'confirm-receipt')}
+      ${button('Report a problem', 'categories', true)}
+      ${state.savedReport ? button('View saved demo report', 'saved', true) : ''}
+      <p class="demo">Prototype · no confirmation or report is sent to the restaurant.</p>
+    `;
+  } else if (state.page === 'confirm') {
+    content = `
+      <button type="button" class="back" data-action="order">← Order</button>
+      <h1 id="page-title" tabindex="-1">Received your order?</h1>
+      ${orderCard()}
+      <p>Confirm that the delivery was handed to you. You can still report a problem afterward.</p>
+      ${button('Yes, confirm receipt · demo', 'receive')}
+      ${button('Go back', 'order', true)}
+    `;
+  } else if (state.page === 'received') {
+    content = `
+      <div class="status" aria-hidden="true">✓</div>
+      <h1 id="page-title" tabindex="-1">Receipt confirmed</h1>
+      <p>Recorded in this demo only.</p>
+      ${orderCard()}
+      ${button('Report a problem', 'categories')}
+      ${button('Back to order', 'order', true)}
+    `;
+  } else if (state.page === 'categories') {
+    content = `
+      <button type="button" class="back" data-action="order">← Order</button>
+      <h1 id="page-title" tabindex="-1">What went wrong?</h1>
+      <p>Choose a problem type.</p>
+      ${categories.map((category, index) => `
+        <button type="button" class="role-card" data-category="${index}">
+          <span><strong>${escapeHtml(category)}</strong></span>
+          <span class="arrow" aria-hidden="true">→</span>
+        </button>
+      `).join('')}
+    `;
+  } else if (state.page === 'report') {
+    content = reportForm();
+  } else if (state.page === 'saved' && state.savedReport) {
+    const report = state.savedReport;
+    content = `
+      <div class="status" aria-hidden="true">✓</div>
+      <h1 id="page-title" tabindex="-1">Demo report saved</h1>
+      <p>Nothing has been sent to the restaurant.</p>
+      <article class="order">
+        <h2>${escapeHtml(report.category)}</h2>
+        <p style="white-space: pre-wrap">${escapeHtml(report.description)}</p>
+        ${report.photoUrl ? `
+          <img class="photo" src="${escapeHtml(report.photoUrl)}" alt="Photo saved with demo report">
+        ` : ''}
+      </article>
+      ${button('Back to order', 'order')}
+    `;
+  }
+
+  app.innerHTML = `
+    <header class="top">
+      <div class="brand">NOVA<span> ✳</span></div>
+      <span class="role-switch">Customer</span>
+    </header>
+    ${content}
+  `;
+
+  if (focusHeading) {
+    document.querySelector('#page-title')?.focus();
+    window.scrollTo(0, 0);
+  }
+}
+
+function navigate(page) {
+  state.page = page;
+  state.error = '';
+  render(true);
+}
+
+app.addEventListener('click', event => {
+  const categoryButton = event.target.closest('[data-category]');
+
+  if (categoryButton) {
+    state.category = categories[Number(categoryButton.dataset.category)];
+    navigate('report');
+    return;
+  }
+
+  const actionButton = event.target.closest('[data-action]');
+  if (!actionButton) return;
+
+  const action = actionButton.dataset.action;
+
+  if (action === 'confirm-receipt') {
+    navigate('confirm');
+  } else if (action === 'receive') {
+    // Future integration: await the receipt endpoint before showing success.
+    state.received = true;
+    navigate('received');
+  } else if (action === 'remove-photo') {
+    if (state.photoUrl && state.photoUrl !== state.savedReport?.photoUrl) {
+      URL.revokeObjectURL(state.photoUrl);
+    }
+    state.photoUrl = null;
+    state.photoName = '';
+    render();
+  } else {
+    navigate(action);
+  }
+});
+
+app.addEventListener('input', event => {
+  if (event.target.id === 'description') {
+    state.description = event.target.value;
+  }
+});
+
+app.addEventListener('change', event => {
+  if (event.target.id !== 'photo') return;
+
+  const file = event.target.files[0];
+  if (!file) return;
+
+  if (!file.type.startsWith('image/') || file.size > 10 * 1024 * 1024) {
+    state.error = 'Choose an image smaller than 10 MB.';
+    render();
+    return;
+  }
+
+  if (state.photoUrl && state.photoUrl !== state.savedReport?.photoUrl) {
+    URL.revokeObjectURL(state.photoUrl);
+  }
+  state.photoUrl = URL.createObjectURL(file);
+  state.photoName = file.name;
+  state.error = '';
+  render();
+});
+
+app.addEventListener('submit', event => {
+  if (event.target.id !== 'report-form') return;
+  event.preventDefault();
+
+  if (!state.description.trim()) {
+    state.error = 'Please describe the problem.';
+    render();
+    document.querySelector('#description').focus();
+    return;
+  }
+
+  // Future integration: upload using FormData and wait for backend success.
+  const previousPhoto = state.savedReport?.photoUrl;
+  state.savedReport = {
+    category: state.category,
+    description: state.description.trim(),
+    photoUrl: state.photoUrl
+  };
+  if (previousPhoto && previousPhoto !== state.photoUrl) {
+    URL.revokeObjectURL(previousPhoto);
+  }
+  navigate('saved');
+});
+
 render();
