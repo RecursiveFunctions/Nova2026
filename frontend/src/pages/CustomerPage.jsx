@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import "./customer.css";
 
 const categories = [
   "This isn’t my order",
