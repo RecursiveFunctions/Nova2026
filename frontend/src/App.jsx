@@ -17,5 +17,16 @@ export default function App() {
   if ((m = path.match(/^\/pickup\/([^/]+)$/))) return <PickupPage boxId={decodeURIComponent(m[1])} />;
   if (path === "/simulator") return <Simulator />;
   if (path === "/courier") return <CourierDashboard />;
+  if ((m = path.match(/^\/customer\/([^/]+)$/))) {
+    const orderId = decodeURIComponent(m[1]);
+
+    return (
+      <CustomerPage
+        key={orderId}
+        orderId={orderId}
+      />
+    );
+  }
+
   return <Home />;
 }
