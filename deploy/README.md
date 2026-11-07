@@ -1,6 +1,6 @@
 # NOVA deploy
 
-Production: https://novabox.recursivefunctions.dev/  
+Production: https://novabox.recursivefunctions.dev/
 Branch demos: https://novabox.recursivefunctions.dev/p/&lt;slug&gt;/
 
 ## Host layout (1mhzmb4-1)

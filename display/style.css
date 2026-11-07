@@ -169,13 +169,124 @@ footer {
   border-radius: 8px;
 }
 
-@media (max-width: 520px) and (orientation: portrait) {
+
+/* iPhone / mobile display */
+@media screen and (max-width: 600px) {
+
+  body {
+    margin: 0;
+    width: 100%;
+    overflow-x: hidden;
+  }
+
+  .screen {
+    width: 100%;
+    height: auto;
+    min-height: 100dvh;
+    padding: 24px 20px;
+    overflow: visible;
+  }
+
+  header {
+    padding-bottom: 20px;
+  }
+
+  .brand strong {
+    font-size: 22px;
+  }
+
+  .logo {
+    width: 44px;
+    height: 44px;
+  }
+
+  .connected {
+    font-size: 10px;
+  }
+
   .content {
-    grid-template-columns: 1fr;
-    gap: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    padding: 28px 0;
+  }
+
+  h1 {
+    font-size: 48px;
+    overflow-wrap: anywhere;
+  }
+
+  .label {
+    font-size: 12px;
+  }
+
+  .priority {
+    font-size: 12px;
+  }
+
+  .eta {
+    font-size: 30px;
   }
 
   .verification {
-    min-height: 45%;
+    width: 100%;
+    padding: 20px;
+    gap: 20px;
+  }
+
+  .status {
+    font-size: 13px;
+  }
+
+  .tap-area {
+    gap: 12px;
+  }
+
+  .qr-code {
+    width: 180px;
+    height: 180px;
+    max-width: 100%;
+  }
+
+  .tap-area strong {
+    font-size: 16px;
+  }
+
+  .tap-area small {
+    font-size: 12px;
+    text-align: center;
+  }
+
+  footer {
+    margin-top: auto;
+  }
+}
+
+html, body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+@media screen and (max-width: 600px) {
+  .screen {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .content {
+    grid-template-columns: 1fr;
+    min-width: 0;
+  }
+
+  .content > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .verification {
+    width: 100%;
+    min-width: 0;
   }
 }
