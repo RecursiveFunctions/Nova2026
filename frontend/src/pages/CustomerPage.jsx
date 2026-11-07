@@ -1,4 +1,12 @@
 import { useEffect, useRef, useState } from "react";
+import { api } from "../api.js";
+
+const labels = {
+  missing_item: "Missing item",
+  wrong_order: "Wrong order",
+  quality: "Food quality",
+  other: "Something else",
+};
 
 const categories = [
   "This isn’t my order",
@@ -19,6 +27,7 @@ export default function CustomerPage({ orderId }) {
   const [preview, setPreview] = useState("");
   const [saved, setSaved] = useState(null);
   const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
   const heading = useRef(null);
 
   useEffect(() => {
@@ -58,16 +67,27 @@ export default function CustomerPage({ orderId }) {
     navigate("received");
   }
 
-  function saveReport(event) {
+  async function saveReport(event) {
     event.preventDefault();
     if (!description.trim()) {
       setError("Please describe the problem.");
       return;
     }
-    // TODO: send orderId, category, description and photo using FormData.
-    // Keep photo as a File; preview URLs cannot be uploaded as image data.
-    setSaved({ category, description: description.trim(), photoName: photo?.name });
-    navigate("saved");
+    setBusy(true);
+    setError("");
+    try {
+      const triage = await api("POST", "/reports/triage", {
+        order_id: orderId || "1042",
+        description: description.trim(),
+        category,
+      });
+      setSaved({ description: description.trim(), photoName: photo?.name, triage });
+      navigate("saved");
+    } catch (err) {
+      setError(err.message || "Could not classify this report.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   const titles = {
@@ -75,7 +95,7 @@ export default function CustomerPage({ orderId }) {
     confirm: "Received your order?",
     received: "Receipt confirmed",
     report: "Report a problem",
-    saved: "Demo report saved",
+    saved: "Report classified",
   };
 
   return (
@@ -92,7 +112,7 @@ export default function CustomerPage({ orderId }) {
       )}
 
       <h1 ref={heading} tabIndex={-1}>{titles[page]}</h1>
-      <p className="nc-notice">Demo only · not connected to the customer backend.</p>
+      <p className="nc-notice">Problem reports are classified by the laptop model. Receipt confirmation stays in this tab.</p>
 
       <section className="nc-card" aria-label="Order information">
         <strong>Order #{orderId || "1042"}</strong>
@@ -146,17 +166,17 @@ export default function CustomerPage({ orderId }) {
             if (input) input.value = "";
           }}>Remove photo</button>}
           {error && <p className="nc-error" role="alert">{error}</p>}
-          <p className="nc-notice">Your report stays in this tab. Nothing is sent to the restaurant.</p>
-          <button className="nc-primary" type="submit">Save demo report</button>
+          <button className="nc-primary" type="submit" disabled={busy}>{busy ? "Classifying…" : "Classify report"}</button>
         </form>
       )}
 
       {page === "saved" && saved && (
         <section className="nc-card" role="status">
-          <h2>{saved.category}</h2>
+          <h2>{labels[saved.triage.category] || saved.triage.category}</h2>
+          <p><span className={`nc-severity ${saved.triage.severity}`}>{saved.triage.severity}</span></p>
+          <p>{saved.triage.action}</p>
           <p className="nc-description">{saved.description}</p>
           {saved.photoName && <p>Photo selected: {saved.photoName}</p>}
-          <p>Not submitted. Refreshing clears this demo.</p>
         </section>
       )}
     </main>

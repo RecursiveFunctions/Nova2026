@@ -56,6 +56,13 @@ BOX_IDS = _csv("BOX_IDS", "BOX-01,BOX-02")
 STAFF_RFID_UIDS = _csv("STAFF_RFID_UIDS", "STAFF-TAG-01")
 CORS_ORIGINS = _csv("CORS_ORIGINS", "*")
 
+# Laptop llama-server (yeetcoder-wsl). Gemma 4 26B-A4B HauhauCS Q4_K_M.
+# Empty TRIAGE_LLM_MODEL picks the Gemma id advertised by /v1/models.
+TRIAGE_LLM_BASE_URL = (os.environ.get("TRIAGE_LLM_BASE_URL") or "http://100.110.227.37:8790/v1").rstrip("/")
+TRIAGE_LLM_MODEL = (os.environ.get("TRIAGE_LLM_MODEL") or "").strip()
+TRIAGE_LLM_API_KEY = (os.environ.get("TRIAGE_LLM_API_KEY") or "").strip()
+TRIAGE_LLM_TIMEOUT = float(os.environ.get("TRIAGE_LLM_TIMEOUT") or 90)
+
 
 def _pickup_secret() -> bytes:
     """Key used to derive and hash pickup codes. Never stored in the database."""
