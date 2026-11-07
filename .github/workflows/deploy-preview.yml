@@ -32,7 +32,7 @@ jobs:
           SLUG=$(echo "$NAME" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//; s/-+/-/g' | cut -c1-48)
           echo "ref=$REF" >> "$GITHUB_OUTPUT"
           echo "slug=$SLUG" >> "$GITHUB_OUTPUT"
-          echo "url=https://novabox.recursivefunctions.dev/p/$SLUG/" >> "$GITHUB_OUTPUT"
+          echo "url=https://novabox.recursivefunctions.dev/$SLUG/" >> "$GITHUB_OUTPUT"
 
       - name: Sync origin into deploy checkout
         run: |

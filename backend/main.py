@@ -14,7 +14,7 @@ from typing import Optional
 
 from fastapi import Depends, FastAPI, Header, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 import config
@@ -209,6 +209,26 @@ def pickup_page(box_id: str):
     if not exists:
         return HTMLResponse(render_unknown_box_page(box_id), status_code=404)
     return HTMLResponse(render_pickup_page(box_id))
+
+
+@app.get("/pickup/{box_id}/qr.png")
+def pickup_qr(box_id: str, request: Request, url: Optional[str] = Query(default=None)):
+    """QR image for the courier page. Encodes PUBLIC_BASE_URL[/branch]/pickup/{box}."""
+    with db.read_tx() as conn:
+        exists = conn.execute("SELECT 1 FROM boxes WHERE box_id = ?", (box_id,)).fetchone() is not None
+    if not exists:
+        raise ApiError(404, "Unknown box")
+    target = (url or "").strip() or config.public_pickup_url(box_id)
+    # Allow branch prefix from the path router when PUBLIC_PATH_PREFIX is unset.
+    prefix = (request.headers.get("x-forwarded-prefix") or "").rstrip("/")
+    if not url and prefix and prefix not in target:
+        target = f"{config.PUBLIC_BASE_URL}{prefix}/pickup/{box_id}"
+    import io
+    import qrcode
+    img = qrcode.make(target, border=2)
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return Response(buf.getvalue(), media_type="image/png", headers={"Cache-Control": "no-store"})
 
 
 # --------------------------------------------------------------------- demo-only routes

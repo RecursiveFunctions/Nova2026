@@ -277,6 +277,7 @@ def box_screen_view(conn, box_id: str) -> dict:
         "status": box["status"],
         "display_mode": box["display_mode"],
         "lock_state": box["lock_state"],
+        "pickup_url": config.public_pickup_url(box["box_id"]),
     }
     if box["order_id"] and box["status"] in ("PREPARING", "READY", "UNLOCKED"):
         order = conn.execute("SELECT * FROM orders WHERE order_id = ?", (box["order_id"],)).fetchone()

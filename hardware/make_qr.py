@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Printable QR stickers for the boxes (pip install qrcode pillow).
 
-    python make_qr.py --public-url http://192.168.1.20:5173                 # BOX-01 and BOX-02
-    python make_qr.py --public-url http://192.168.1.20:5173 --box BOX-01
+    python make_qr.py                                              # uses PUBLIC_URL / novabox default
+    python make_qr.py --public-url https://novabox.recursivefunctions.dev/keyaan
+    python make_qr.py --box BOX-01
 
-Each sticker opens <public-url>/pickup/<box>: staff mark the order ready there (with their staff ID)
-and couriers enter their one-time pickup code. The URL holds no credential. The LAN IP usually
-changes at a new venue: reprint the stickers there (the box screen's own QR follows PUBLIC_URL).
+Each sticker opens <public-url>/pickup/<box> (e.g. /<branch>/pickup/BOX-01). Staff mark ready
+there; couriers enter the one-time code. Prefer the public hostname over a LAN IP.
 """
 import argparse
 import os
@@ -31,13 +31,14 @@ def sticker(url: str, box_id: str):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--public-url", default=os.environ.get("PUBLIC_URL"), required=not os.environ.get("PUBLIC_URL"),
-                    help="frontend URL phones can open, e.g. http://192.168.1.20:5173 (env PUBLIC_URL)")
+    ap.add_argument("--public-url",
+                    default=os.environ.get("PUBLIC_URL") or "https://novabox.recursivefunctions.dev",
+                    help="origin phones open, optionally with /<branch> (env PUBLIC_URL)")
     ap.add_argument("--box", action="append", help="box ID; repeat for several (default BOX-01 and BOX-02)")
     ap.add_argument("--out", default=".", help="output folder")
     args = ap.parse_args()
     if "localhost" in args.public_url or "127.0.0.1" in args.public_url:
-        sys.exit("Use the laptop's LAN IP, not localhost: phones cannot open localhost.")
+        sys.exit("Use https://novabox.recursivefunctions.dev[/branch], not localhost.")
     for box_id in args.box or ["BOX-01", "BOX-02"]:
         url = f"{args.public_url.rstrip('/')}/pickup/{urllib.parse.quote(box_id, safe='')}"
         path = os.path.join(args.out, f"qr-{box_id}.png")

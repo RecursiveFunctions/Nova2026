@@ -1,7 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 // Empty = same origin (the Vite proxy forwards API paths to the backend).
-const BASE = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/+$/, "");
+// Under /<branch>/ demos, prefix API calls so the path router keeps them on that preview.
+const RESERVED = new Set([
+  "screen", "pickup", "simulator", "courier", "customer",
+  "boxes", "orders", "demo", "health", "docs", "assets", "api", "static", "p",
+]);
+function branchPrefix() {
+  const segs = window.location.pathname.split("/").filter(Boolean);
+  if (segs[0] === "p" && segs[1]) return "/" + segs[1];
+  if (segs[0] && !RESERVED.has(segs[0])) return "/" + segs[0];
+  return "";
+}
+const BASE = (import.meta.env.VITE_API_BASE_URL || branchPrefix()).replace(/\/+$/, "");
 
 export class ApiError extends Error {
   constructor(status, message, body) {

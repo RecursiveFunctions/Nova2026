@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Create/update/destroy a branch preview at https://novabox.recursivefunctions.dev/p/<slug>/
+# Create/update/destroy a branch preview at https://novabox.recursivefunctions.dev/<slug>/
 set -euo pipefail
 
 ACTION="${1:?action required (upsert|destroy)}"
@@ -66,7 +66,7 @@ if [[ "$ACTION" == "destroy" ]]; then
   stop_preview "$DIR"
   rm -rf "$DIR"
   ensure_routes
-  echo "destroyed https://$DOMAIN/p/$SLUG/"
+  echo "destroyed https://$DOMAIN/$SLUG/"
   exit 0
 fi
 
@@ -108,9 +108,12 @@ stop_preview "$DIR"
 fuser -k "${PORT}/tcp" 2>/dev/null || true
 export DATABASE_PATH="$DIR/pickup_box.db"
 export CORS_ORIGINS="*"
+export PUBLIC_BASE_URL="https://$DOMAIN"
+export PUBLIC_PATH_PREFIX="/$SLUG"
+export PUBLIC_URL="https://$DOMAIN/$SLUG"
 
 if [[ -f display/app.py && -d backend ]]; then
-  nohup "$UV" run --with fastapi --with uvicorn python display/app.py "$PORT" >"$DIR/preview.log" 2>&1 &
+  nohup "$UV" run --with fastapi --with uvicorn --with qrcode --with pillow python display/app.py "$PORT" >"$DIR/preview.log" 2>&1 &
 elif [[ -f backend/main.py && -f frontend/package.json ]]; then
   (cd frontend && npm install --silent && npm run build)
   cat > "$DIR/run.py" <<PY
@@ -119,6 +122,8 @@ from pathlib import Path
 repo = Path("$DIR/repo")
 os.environ.setdefault("DATABASE_PATH", "$DIR/pickup_box.db")
 os.environ.setdefault("CORS_ORIGINS", "*")
+os.environ.setdefault("PUBLIC_BASE_URL", "https://$DOMAIN")
+os.environ.setdefault("PUBLIC_PATH_PREFIX", "/$SLUG")
 os.chdir(repo / "backend")
 sys.path.insert(0, str(repo / "backend"))
 from fastapi.responses import FileResponse
@@ -159,7 +164,7 @@ meta = {
   "sha": "$(git rev-parse HEAD)",
   "port": $PORT,
   "updated": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-  "url": "https://$DOMAIN/p/$SLUG/",
+  "url": "https://$DOMAIN/$SLUG/",
 }
 Path("$DIR/meta.json").write_text(json.dumps(meta, indent=2) + "\n")
 print(json.dumps(meta))
@@ -179,4 +184,4 @@ if [[ "$ok" != "1" ]]; then
 fi
 
 ensure_routes
-echo "preview https://$DOMAIN/p/$SLUG/ (port $PORT, router :$ROUTER_PORT)"
+echo "preview https://$DOMAIN/$SLUG/ (pickup https://$DOMAIN/$SLUG/pickup/BOX-01)" 

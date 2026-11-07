@@ -56,6 +56,16 @@ BOX_IDS = _csv("BOX_IDS", "BOX-01,BOX-02")
 STAFF_RFID_UIDS = _csv("STAFF_RFID_UIDS", "STAFF-TAG-01")
 CORS_ORIGINS = _csv("CORS_ORIGINS", "*")
 
+# Public origin phones open (QR / NFC). Branch demos also set PUBLIC_PATH_PREFIX=/<slug>.
+PUBLIC_BASE_URL = (os.environ.get("PUBLIC_BASE_URL") or "https://novabox.recursivefunctions.dev").rstrip("/")
+PUBLIC_PATH_PREFIX = (os.environ.get("PUBLIC_PATH_PREFIX") or "").rstrip("/")
+
+
+def public_pickup_url(box_id: str) -> str:
+    """Absolute courier page URL encoded into QR stickers and the box screen."""
+    prefix = PUBLIC_PATH_PREFIX
+    return f"{PUBLIC_BASE_URL}{prefix}/pickup/{box_id}"
+
 
 def _pickup_secret() -> bytes:
     """Key used to derive and hash pickup codes. Never stored in the database."""

@@ -1,7 +1,14 @@
 const BOX_ID = new URLSearchParams(location.search).get("box") || "BOX-01";
 const POLL_MS = 1000;
-const PREVIEW = location.pathname.match(/^\/p\/([^/]+)/);
-const BASE = PREVIEW ? `/p/${PREVIEW[1]}` : "";
+
+// Branch demos live at /<slug>/... (legacy /p/<slug>/ still redirects).
+const RESERVED = new Set([
+  "boxes", "pickup", "orders", "demo", "health", "docs",
+  "screen", "simulator", "courier", "customer", "assets", "api", "static", "p",
+]);
+const parts = location.pathname.split("/").filter(Boolean);
+const BRANCH = parts[0] && !RESERVED.has(parts[0]) ? parts[0] : (parts[0] === "p" && parts[1] ? parts[1] : "");
+const BASE = BRANCH ? `/${BRANCH}` : "";
 
 const els = {
   id: document.getElementById("order-id"),
@@ -19,8 +26,17 @@ function setConnected(ok) {
   els.connected.style.color = ok ? "#4ade80" : "#f87171";
 }
 
-function showPickupUrl() {
+function pickupUrl() {
   return `${location.origin}${BASE}/pickup/${encodeURIComponent(BOX_ID)}`;
+}
+
+function setQr(url) {
+  const src = `${BASE}/pickup/${encodeURIComponent(BOX_ID)}/qr.png?url=${encodeURIComponent(url)}`;
+  if (els.qrImg.dataset.url !== url) {
+    els.qrImg.dataset.url = url;
+    els.qrImg.src = src;
+    els.qrImg.alt = url;
+  }
 }
 
 async function poll() {
@@ -35,8 +51,7 @@ async function poll() {
     els.status.textContent = box.status || "UNKNOWN";
     els.eta.textContent = "\u2014";
     els.verifyText.textContent = "SCAN TO VERIFY";
-    els.qrImg.src = "order_qr.png";
-    els.qrImg.alt = "Pickup QR Code";
+    setQr(box.pickup_url || pickupUrl());
   } catch (err) {
     setConnected(false);
   }

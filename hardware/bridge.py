@@ -350,11 +350,12 @@ def env(name, default=None):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--box", default=env("BOX_ID"), help="box ID, e.g. BOX-01 (env BOX_ID)")
-    ap.add_argument("--api", default=env("API_BASE_URL", "http://127.0.0.1:8000"),
-                    help="backend URL, the API laptop's LAN IP (env API_BASE_URL)")
-    ap.add_argument("--public-url", default=env("PUBLIC_URL"),
-                    help="frontend URL phones can open, e.g. http://192.168.1.20:5173 (env PUBLIC_URL); "
-                         "the QR code points to <public-url>/pickup/<box>")
+    ap.add_argument("--api", default=env("API_BASE_URL", "https://novabox.recursivefunctions.dev"),
+                    help="backend URL (env API_BASE_URL)")
+    ap.add_argument("--public-url",
+                    default=env("PUBLIC_URL", "https://novabox.recursivefunctions.dev"),
+                    help="origin phones open, optionally /<branch> (env PUBLIC_URL); "
+                         "QR points to <public-url>/pickup/<box>")
     ap.add_argument("--display", choices=["fb", "png", "none"], default=env("DISPLAY_MODE", "fb"),
                     help="fb = draw on the LCD, png = preview files (env DISPLAY_MODE)")
     ap.add_argument("--fb", default=env("FB_DEVICE", "/dev/fb1"), help="LCD framebuffer (env FB_DEVICE)")
@@ -404,7 +405,7 @@ def main():
     if not pickup_url:
         log("WARNING: no --public-url / PUBLIC_URL, so no QR code on the screen")
     elif "localhost" in pickup_url or "127.0.0.1" in pickup_url:
-        log("WARNING: the QR code points to localhost, which phones cannot open; use the LAN IP")
+        log("WARNING: QR points to localhost; use https://novabox.recursivefunctions.dev[/branch]")
 
     if args.display == "fb":
         display = FramebufferDisplay(args.fb, args.rotate)

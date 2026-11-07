@@ -53,8 +53,9 @@ _PAGE = """<!doctype html>
 </main>
 <script>
   var boxId = __BOX_JSON__;
-  var preview = location.pathname.match(/^\/p\/([^/]+)/);
-  var base = preview ? ("/p/" + preview[1]) : "";
+  var reserved = {boxes:1,pickup:1,orders:1,demo:1,health:1,docs:1,screen:1,simulator:1,courier:1,customer:1,assets:1,api:1,static:1,p:1};
+  var segs = location.pathname.split("/").filter(Boolean);
+  var base = (segs[0] && !reserved[segs[0]]) ? ("/" + segs[0]) : (segs[0] === "p" && segs[1] ? ("/" + segs[1]) : "");
   var form = document.getElementById("f"), input = document.getElementById("code");
   var btn = document.getElementById("go"), result = document.getElementById("result");
   function show(text, kind) { result.textContent = text; result.className = kind; }
