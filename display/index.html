@@ -1,0 +1,54 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NOVA Smart Pickup</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="screen">
+    <header>
+      <div class="brand">
+        <div class="logo">N</div>
+        <div>
+          <strong>NOVA</strong>
+          <small>SMART PICKUP</small>
+        </div>
+      </div>
+      <div class="connected">● CONNECTED</div>
+    </header>
+
+    <section class="content">
+      <div class="order">
+        <div class="label">ACTIVE ORDER</div>
+        <h1 id="order-id">#1042</h1>
+        <div id="priority" class="priority">HIGH PRIORITY</div>
+        <div class="label eta-label">PICKUP ETA</div>
+        <div id="eta" class="eta">04:00</div>
+      </div>
+
+      <div class="verification">
+        <div class="status">
+          <span>STATUS</span>
+          <strong id="status">READY</strong>
+        </div>
+        <
+<div class="tap-area" id="qr-area">
+  <img src="order_qr.png" class="qr-code" alt="Pickup QR Code">
+  <strong id="verify-text">SCAN TO VERIFY</strong>
+  <small>SCAN WITH YOUR PHONE</small>
+</div>
+
+      </div>
+    </section>
+
+    <footer>
+      <span>POWERED BY NOVA AI</span>
+      <span>v1.0</span>
+    </footer>
+  </main>
+  <script src="script.js"></script>
+</body>
+</html>
