@@ -5,12 +5,13 @@
     python smoke_test.py --base-url http://192.168.1.50:8000 --demo-key change-me
 
 WARNING: calls POST /demo/reset before and after the run, which wipes all orders.
-Needs the default seed data: BOX-01, BOX-02 and staff card STAFF-TAG-01.
+Needs boxes BOX-01 and BOX-02 and a registered staff ID (--staff-id, default STAFF-TAG-01).
 Use 127.0.0.1 rather than localhost on Windows: localhost tries IPv6 first and adds ~1 s per request.
 Exit code 0 = everything passed.
 """
 import argparse
 import json
+import os
 import sys
 import threading
 import time
@@ -68,9 +69,11 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--base-url", default="http://127.0.0.1:8000")
     ap.add_argument("--demo-key", default="", help="X-Demo-Key (omit if the server runs without DEMO_API_KEY and you are on the same machine)")
+    ap.add_argument("--staff-id", default=os.environ.get("STAFF_ID") or "STAFF-TAG-01", help="a registered staff ID (env STAFF_ID)")
     ap.add_argument("--cooldown", type=float, default=1.0, help="server FAILED_ATTEMPT_COOLDOWN_SECONDS (0 skips the 429 check)")
     args = ap.parse_args()
     api = Api(args.base_url, args.demo_key)
+    staff = args.staff_id
 
     try:
         status, _ = api.call("GET", "/health")
@@ -101,7 +104,7 @@ def main():
     status, body = reset()
     if not check("POST /demo/reset works", status == 200, f"{status} {body} (is X-Demo-Key right?)"):
         sys.exit(1)
-    s, b = api.call("POST", "/boxes/BOX-01/staff-confirm", {"rfid_uid": "STAFF-TAG-01"})
+    s, b = api.call("POST", "/boxes/BOX-01/staff-confirm", {"rfid_uid": staff})
     check("staff tap on an idle box (nothing preparing) -> 409, no state change", s == 409 and box("BOX-01")["status"] == "AVAILABLE", f"{s} {b}")
 
     # ---- T1 / T3: ingest, one ledger, two boxes
@@ -163,7 +166,7 @@ def main():
     check("box did not change", box("BOX-01")["status"] == "PREPARING")
 
     section("T5/T7/T13  Registered staff RFID -> READY, pickup details, duplicate tap")
-    s, b = api.call("POST", "/boxes/BOX-01/staff-confirm", {"rfid_uid": "STAFF-TAG-01"})
+    s, b = api.call("POST", "/boxes/BOX-01/staff-confirm", {"rfid_uid": staff})
     check("registered tap -> 200 confirmed, READY, not a duplicate", s == 200 and b.get("confirmed") is True and b.get("already_confirmed") is False and b.get("status") == "READY", f"{s} {b}")
     v = box("BOX-01")
     check("BOX-01 is READY and LOCKED", v.get("status") == "READY" and v.get("lock_state") == "LOCKED", str(v))
@@ -172,7 +175,7 @@ def main():
     check("READY screen has no pickup code", "pickup_code" not in v and "items" not in v)
     code1 = code_for("T-1")
     check("courier dashboard shows a 6-digit code", bool(code1) and len(code1) == 6 and code1.isdigit(), str(code1))
-    s, b = api.call("POST", "/boxes/BOX-01/staff-confirm", {"rfid_uid": "staff-tag-01"})
+    s, b = api.call("POST", "/boxes/BOX-01/staff-confirm", {"rfid_uid": staff.lower()})
     check("second tap -> 200 'already_confirmed', no new state", s == 200 and b.get("already_confirmed") is True, f"{s} {b}")
     check("second tap did not issue a new code", code_for("T-1") == code1)
     check("staff-confirm response contains no pickup code", "pickup_code" not in b and code1 not in json.dumps(b))
@@ -204,7 +207,7 @@ def main():
     time.sleep(args.cooldown + 0.3)
 
     section("Wrong box: a valid code only works on its own box")
-    api.call("POST", "/boxes/BOX-02/staff-confirm", {"rfid_uid": "STAFF-TAG-01"})
+    api.call("POST", "/boxes/BOX-02/staff-confirm", {"rfid_uid": staff})
     code2 = code_for("T-2")
     s, b = api.call("POST", "/boxes/BOX-02/verify-pickup", {"pickup_code": code1})
     check("BOX-01's code is refused on BOX-02", s in (403, 409) and b.get("authorized") is False, f"{s} {b}")
@@ -245,7 +248,7 @@ def main():
     check("T-2 authorized with its own code", s == 200 and b.get("order_id") == "T-2", f"{s} {b}")
     s, b = api.call("POST", "/boxes/BOX-02/complete-pickup")
     check("collected, next is T-6 (next earliest latest-start)", s == 200 and b.get("next_order_id") == "T-6", f"{s} {b}")
-    api.call("POST", "/boxes/BOX-01/staff-confirm", {"rfid_uid": "STAFF-TAG-01"})
+    api.call("POST", "/boxes/BOX-01/staff-confirm", {"rfid_uid": staff})
     s, b = api.call("POST", "/boxes/BOX-01/verify-pickup", {"pickup_code": code1})
     check("T-1's old code is refused on the reused BOX-01 (now holding T-4)", s == 403 and b.get("authorized") is False, f"{s} {b}")
     check("BOX-01 stays READY for T-4", box("BOX-01")["status"] == "READY" and box("BOX-01")["order_id"] == "T-4")
@@ -280,7 +283,7 @@ def main():
           len({o["box_id"] for o in prep}) == 2 and all(boxes[o["box_id"]]["order_id"] == o["order_id"] for o in prep), str(boxes))
 
     results = []
-    taps = [threading.Thread(target=lambda: results.append(api.call("POST", "/boxes/BOX-01/staff-confirm", {"rfid_uid": "STAFF-TAG-01"}))) for _ in range(4)]
+    taps = [threading.Thread(target=lambda: results.append(api.call("POST", "/boxes/BOX-01/staff-confirm", {"rfid_uid": staff}))) for _ in range(4)]
     for t in taps:
         t.start()
     for t in taps:

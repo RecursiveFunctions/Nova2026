@@ -70,15 +70,24 @@ async def db_error_handler(request: Request, exc: sqlite3.OperationalError):
     return JSONResponse({"error": "Database unavailable, please retry"}, status_code=503)
 
 
+_LOOPBACK = {"127.0.0.1", "::1", "localhost"}
+
+
+def _is_local_request(request: Request) -> bool:
+    """True only if the caller AND every proxy hop (X-Forwarded-For) are this machine, so a phone
+    reaching the API through the frontend's dev-server proxy is not mistaken for a local caller."""
+    hops = [request.client.host if request.client else ""]
+    hops += [h.strip() for h in request.headers.get("x-forwarded-for", "").split(",") if h.strip()]
+    return all(h.removeprefix("::ffff:") in _LOOPBACK for h in hops)
+
+
 def require_demo_access(request: Request, x_demo_key: Optional[str] = Header(default=None)):
     """Protects /demo/*: X-Demo-Key header if DEMO_API_KEY is set, otherwise local requests only."""
     if config.DEMO_API_KEY:
         if not x_demo_key or not hmac.compare_digest(x_demo_key.encode("utf-8"), config.DEMO_API_KEY.encode("utf-8")):
             raise ApiError(403, "Missing or invalid X-Demo-Key header")
-    else:
-        host = request.client.host if request.client else ""
-        if host not in ("127.0.0.1", "::1", "localhost"):
-            raise ApiError(403, "Demo endpoints are local-only. Set DEMO_API_KEY to allow remote use")
+    elif not _is_local_request(request):
+        raise ApiError(403, "Demo endpoints are local-only. Set DEMO_API_KEY to allow remote use")
 
 
 # ------------------------------------------------------------------------------ models
