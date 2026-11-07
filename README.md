@@ -27,7 +27,7 @@ laptop's LAN IP. Before the demo, copy `backend/.env.example` to `backend/.env` 
 | `hardware/` | Raspberry Pi bridge: LCD, motor latch, QR codes |
 | `display/` | The public online demo: backend + a simple box screen served from one port |
 | `deploy/` | Hosting on our own machine: production plus a live preview per branch |
-| `interface/` | Dead-end first draft of the customer page, kept for reference |
+| `interface/` | LLM-powered mobile customer service interface|
 
 `start.sh` / `start.ps1` only run `backend/` and `frontend/`. `display/` and `deploy/` run on the demo
 server instead; `interface/` is not run by anything.
