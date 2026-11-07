@@ -1,5 +1,5 @@
 
-const API_URL = "http://localhost:8000";
+const API_URL = "http://172.26.20.68:8000";
 const BOX_ID = "BOX-01";
 
 async function updateDisplay() {
