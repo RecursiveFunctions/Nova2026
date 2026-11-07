@@ -32,7 +32,20 @@ export default function BoxScreen({ boxId }) {
     <div className={`screen state-${box.status.toLowerCase()}`}>
       <BoxTag boxId={box.box_id} />
       {offline && <div className="screen-offline">Connection lost: showing last known state</div>}
-      <div className="screen-body">{renderState(box)}</div>
+      <div className="screen-body">
+  {renderState(box)}
+
+  {box.status === "READY" && (
+    <div className="nova-qr-section">
+      <img
+        src="/order_qr.png"
+        alt="Scan to verify pickup"
+        className="nova-qr"
+      />
+      <p>SCAN TO VERIFY PICKUP</p>
+    </div>
+  )}
+</div>
     </div>
   );
 }
@@ -80,7 +93,15 @@ function renderState(box) {
       );
   }
 }
-
 function BoxTag({ boxId }) {
-  return <div className="screen-tag">{boxId}</div>;
+  return (
+    <header className="nova-header">
+      <div className="nova-brand">
+        <span className="nova-logo">NOVA</span>
+        <span className="nova-subtitle">SMART PICKUP SYSTEM</span>
+      </div>
+
+      <div className="nova-box-id">{boxId}</div>
+    </header>
+  );
 }
