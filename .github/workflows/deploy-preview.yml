@@ -44,7 +44,7 @@ jobs:
         id: deploy
         run: |
           set -euo pipefail
-          /home/ray/code/Nova2026/deploy/deploy-preview.sh upsert "${{ steps.meta.outputs.ref }}" "${{ steps.meta.outputs.slug }}"
+          /home/ray/apps/nova2026/bin/deploy-preview.sh upsert "${{ steps.meta.outputs.ref }}" "${{ steps.meta.outputs.slug }}"
 
       - name: Comment preview URL on PR
         if: github.event_name == 'pull_request'
@@ -84,4 +84,4 @@ jobs:
           set -euo pipefail
           NAME="${{ github.head_ref }}"
           SLUG=$(echo "$NAME" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//; s/-+/-/g' | cut -c1-48)
-          /home/ray/code/Nova2026/deploy/deploy-preview.sh destroy "$SLUG"
+          /home/ray/apps/nova2026/bin/deploy-preview.sh destroy "$SLUG"

@@ -3,6 +3,7 @@ import CourierDashboard from "./pages/CourierDashboard.jsx";
 import Home from "./pages/Home.jsx";
 import PickupPage from "./pages/PickupPage.jsx";
 import Simulator from "./pages/Simulator.jsx";
+import CustomerPage from "./pages/CustomerPage.jsx";
 
 // Three fixed routes, so a tiny path matcher instead of a router dependency.
 //   /screen/:boxId   box display (the screen mounted on the box)
@@ -16,5 +17,16 @@ export default function App() {
   if ((m = path.match(/^\/pickup\/([^/]+)$/))) return <PickupPage boxId={decodeURIComponent(m[1])} />;
   if (path === "/simulator") return <Simulator />;
   if (path === "/courier") return <CourierDashboard />;
+  if ((m = path.match(/^\/customer\/([^/]+)$/))) {
+    const orderId = decodeURIComponent(m[1]);
+
+    return (
+      <CustomerPage
+        key={orderId}
+        orderId={orderId}
+      />
+    );
+  }
+
   return <Home />;
 }
