@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { api, boxPath, usePoll } from "../api.js";
 
-// Opened by tapping the box's NFC tag. The courier types the one-time code from their
-// (simulated) courier app; the backend decides. Anything but a 200 is "not authorized".
+// Opened by scanning the box's QR code. While the order is being prepared, staff use it to mark
+// the order ready with their staff ID (this replaces an RFID tap; the API field is still rfid_uid).
+// Once it is ready, the courier types the one-time code from their (simulated) courier app.
+// The backend decides both. Anything but a 200 is "not authorized".
 export default function PickupPage({ boxId }) {
-  const { data: box, error: boxError } = usePoll(() => api("GET", boxPath(boxId)), 2000, boxId);
+  const { data: box, error: boxError, reload } = usePoll(() => api("GET", boxPath(boxId)), 2000, boxId);
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null); // {ok: true, orderId} | {ok: false, message}
@@ -13,7 +15,7 @@ export default function PickupPage({ boxId }) {
     return (
       <main className="page narrow">
         <h1>Unknown box</h1>
-        <p>No box called {boxId} exists. Check the tag.</p>
+        <p>No box called {boxId} exists. Check the QR code.</p>
       </main>
     );
   }
@@ -78,6 +80,7 @@ export default function PickupPage({ boxId }) {
       {boxError && box && <p className="warn">Connection problem: status may be out of date.</p>}
       {boxError && !box && <p className="warn">Cannot reach the server. Check you are on the demo Wi-Fi.</p>}
 
+      {status === "PREPARING" ? <StaffReadyForm boxId={boxId} onDone={reload} /> : (
       <form onSubmit={submit} className="card">
         <label htmlFor="code">One-time pickup code</label>
         <input
@@ -96,6 +99,7 @@ export default function PickupPage({ boxId }) {
         </button>
         <p className="muted small">The code is in your courier app. It is never shown on the box.</p>
       </form>
+      )}
 
       {result && !result.ok && (
         <div className="result fail" role="alert">
@@ -104,5 +108,41 @@ export default function PickupPage({ boxId }) {
         </div>
       )}
     </main>
+  );
+}
+
+function StaffReadyForm({ boxId, onDone }) {
+  const [staffId, setStaffId] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState(null);
+
+  async function submit(e) {
+    e.preventDefault();
+    if (busy || !staffId.trim()) return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      const res = await api("POST", `${boxPath(boxId)}/staff-confirm`, { rfid_uid: staffId.trim() });
+      setMsg({ ok: true, text: `${res.order_id} marked ready. The box is locked.` });
+      onDone();
+    } catch (err) {
+      setMsg({ ok: false, text: err.status === 0 ? "Could not reach the server; nothing changed." : err.message });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form onSubmit={submit} className="card">
+      <p className="muted">Staff only</p>
+      <h2>Food is in the box?</h2>
+      <label htmlFor="staff">Staff ID</label>
+      <input id="staff" type="password" autoComplete="current-password" value={staffId}
+        onChange={(e) => setStaffId(e.target.value)} disabled={busy} />
+      <button type="submit" className="btn primary wide" disabled={busy || !staffId.trim()}>
+        {busy ? "Saving…" : "Mark ready & lock"}
+      </button>
+      {msg && <p className={msg.ok ? "ok-text" : "error"}>{msg.text}</p>}
+    </form>
   );
 }

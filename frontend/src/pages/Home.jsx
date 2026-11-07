@@ -21,7 +21,7 @@ export default function Home() {
         {boxes && (
           <table className="table">
             <thead>
-              <tr><th>Box</th><th>Box screen</th><th>Courier page (NFC tag URL)</th></tr>
+              <tr><th>Box</th><th>Box screen</th><th>QR code URL (courier + staff page)</th></tr>
             </thead>
             <tbody>
               {boxes.map((b) => (
@@ -40,7 +40,7 @@ export default function Home() {
         )}
         {window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" ? (
           <p className="warn">
-            You are on {window.location.hostname}. A phone cannot open that: write the NFC tag with this
+            You are on {window.location.hostname}. A phone cannot open that: make the QR code with this
             computer's LAN address instead (e.g. http://192.168.x.x:5173/pickup/BOX-01).
           </p>
         ) : null}

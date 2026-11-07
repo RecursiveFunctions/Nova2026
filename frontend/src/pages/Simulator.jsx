@@ -179,8 +179,8 @@ function BoxPanel({ boxes, onChange }) {
     <section className="card">
       <h2>Boxes</h2>
       <label className="small">
-        Staff RFID UID for simulated taps
-        <input value={uid} onChange={(e) => setUid(e.target.value)} placeholder="e.g. STAFF-TAG-01" />
+        Staff ID for simulated "mark ready"
+        <input value={uid} onChange={(e) => setUid(e.target.value)} placeholder="staff ID" />
       </label>
       {boxes.error && <p className="error">{boxes.error.message}</p>}
       <div className="box-list">
@@ -196,7 +196,7 @@ function BoxPanel({ boxes, onChange }) {
             <div className="row wrap">
               <button className="btn" disabled={b.status !== "PREPARING" || !uid.trim() || busy}
                 onClick={() => act(b.box_id, "staff-confirm", { rfid_uid: uid.trim() })}>
-                Simulate staff RFID tap
+                Mark ready (staff)
               </button>
               <button className="btn warn-btn" disabled={b.status !== "UNLOCKED" || busy}
                 onClick={() => act(b.box_id, "complete-pickup")}>

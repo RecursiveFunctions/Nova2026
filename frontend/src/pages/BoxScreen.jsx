@@ -60,7 +60,7 @@ function renderState(box) {
           <h1 className="screen-order">{box.order_id}</h1>
           <p className="screen-name">{box.customer_display_name}</p>
           <p className="screen-summary">{box.summary}</p>
-          <p className="screen-hint">Courier: tap your phone on the NFC tag</p>
+          <p className="screen-hint">Courier: scan the QR code</p>
         </>
       );
     case "UNLOCKED":

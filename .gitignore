@@ -16,3 +16,8 @@ dist/
 *.zip
 /package-lock.json
 /backend/package-lock.json
+
+# Pi bridge settings and generated images
+hardware/bridge.env
+hardware/screen-*.png
+hardware/qr-*.png

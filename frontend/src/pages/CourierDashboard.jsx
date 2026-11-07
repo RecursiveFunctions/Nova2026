@@ -170,7 +170,7 @@ function DemoControls({ demo, onChange }) {
   );
 }
 
-// -------------------------------------------------------------- staff RFID cards
+// ---------------------------------------------------------------------- staff IDs
 
 function StaffCards({ demo }) {
   const [uid, setUid] = useState("");
@@ -192,14 +192,14 @@ function StaffCards({ demo }) {
 
   return (
     <form className="card" onSubmit={submit}>
-      <h2>Register a staff RFID card</h2>
+      <h2>Register a staff ID</h2>
       <p className="muted small">
-        Tap an unknown card on the reader: the backend log prints its UID. Enter it here.
+        Staff type this ID on the box QR page to mark orders ready. Use something hard to guess.
       </p>
       <div className="fields two">
         <label>
-          RFID UID
-          <input value={uid} onChange={(e) => setUid(e.target.value)} required maxLength={64} placeholder="04:A1:B2:C3" />
+          Staff ID
+          <input value={uid} onChange={(e) => setUid(e.target.value)} required maxLength={64} placeholder="e.g. kitchen-x7k2p9" />
         </label>
         <label>
           Staff name <span className="muted">(optional)</span>

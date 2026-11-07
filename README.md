@@ -1,8 +1,8 @@
 # Smart Pickup Box (DoorDash × Nova Hackathon)
 
 Orders from mock delivery apps enter one ledger, are scheduled by latest safe start, shown on a box
-screen while being prepared, marked ready by a staff RFID tap, and released only after the courier
-enters an order-specific one-time code on the page opened by the box's NFC tag.
+screen while being prepared, marked ready by staff (staff ID on the box's QR page), locked by a motor latch, and released only after the courier
+enters an order-specific one-time code on the page opened by the box's QR code.
 
 ## Start everything (one command)
 
@@ -25,7 +25,7 @@ laptop's LAN IP. Before the demo, copy `backend/.env.example` to `backend/.env` 
 | 8000 | FastAPI backend (`backend/`) | Frontend proxy, hardware bridge, `/docs` |
 | 5173 | Vite frontend (`frontend/`) | Box screens, courier phones, simulator, dashboard |
 
-All devices on the same Wi-Fi. Allow both ports through the API laptop's firewall. Phones and NFC tags
+All devices on the same Wi-Fi. Allow both ports through the API laptop's firewall. Phones and QR codes
 use `http://<LAN-IP>:5173/...`, never `localhost`. Plain HTTP is for an isolated demo network only.
 
 ## Pages
@@ -33,9 +33,9 @@ use `http://<LAN-IP>:5173/...`, never `localhost`. Plain HTTP is for an isolated
 | URL | Purpose | Owner |
 |---|---|---|
 | `/screen/BOX-01`, `/screen/BOX-02` | Box display (items only while preparing; pickup details when ready) | B |
-| `/pickup/BOX-01`, `/pickup/BOX-02` | Courier code entry (NFC tag URL) | B |
-| `/simulator` | Mock orders, unified ledger, simulated staff tap, supervised Complete pickup | B |
-| `/courier` | **Demo only:** pickup codes, reset & seed, staff card registration | D |
+| `/pickup/BOX-01`, `/pickup/BOX-02` | QR code page: staff mark ready (staff ID), courier enters code | B |
+| `/simulator` | Mock orders, unified ledger, simulated "mark ready", supervised Complete pickup | B |
+| `/courier` | **Demo only:** pickup codes, reset & seed, staff ID registration | D |
 | `:8000/docs` | Interactive API docs | A |
 
 ## Ownership
@@ -44,7 +44,7 @@ use `http://<LAN-IP>:5173/...`, never `localhost`. Plain HTTP is for an isolated
 |---|---|---|
 | A | Backend: ledger, scheduler, allocator, state machine, pickup codes | `backend/` · `backend` |
 | B | Box screens, courier page, order simulator | `frontend/` · `frontend` |
-| C | Hardware bridge: RFID, display, lock, NFC tags | `hardware/` · `hardware` |
+| C | Raspberry Pi bridge: 3.5" LCD, DC motor latch, QR codes | `hardware/` · `hardware` |
 | D | Integration, tests, courier dashboard, demo | `integration` |
 
 Work on your branch; merge into `main` only after `python backend/smoke_test.py` passes against a
@@ -57,7 +57,7 @@ running backend. A owns the API contract: do not rename fields or statuses witho
 | POST | `/orders` | `platform`, `customer_display_name`, `items[{name, quantity}]`, `estimated_prep_minutes`, `pickup_due_at` (with offset); `order_id` optional |
 | GET | `/orders` | Ledger with `latest_start_at` and `queue_position` |
 | GET | `/boxes`, `/boxes/{id}` | Box list; display-safe screen view (never a code) |
-| POST | `/boxes/{id}/staff-confirm` | `{"rfid_uid": "..."}` PREPARING -> READY, issues the code |
+| POST | `/boxes/{id}/staff-confirm` | `{"rfid_uid": "<staff ID>"}` (field name kept) PREPARING -> READY, issues the code |
 | POST | `/boxes/{id}/verify-pickup` | `{"pickup_code": "123456"}` READY -> UNLOCKED on success only |
 | POST | `/boxes/{id}/complete-pickup` | UNLOCKED -> AVAILABLE, next order assigned |
 | GET/POST | `/demo/courier-orders`, `/demo/reset`, `/demo/seed`, `/demo/staff` | Demo only, `X-Demo-Key` or API laptop |
