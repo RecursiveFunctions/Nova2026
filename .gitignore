@@ -1,0 +1,23 @@
+# Secrets and local data
+.env
+data/
+*.db
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Node
+node_modules/
+dist/
+
+# Local backups / strays (not part of the project)
+*.zip
+/package-lock.json
+/backend/package-lock.json
+
+# Pi bridge settings and generated images
+hardware/bridge.env
+hardware/screen-*.png
+hardware/qr-*.png

@@ -1,0 +1,21 @@
+# Starts the box bridge at boot and restarts it if it stops.
+# Install (paths assume the repo is at /home/pi/Nova; change User/paths if not):
+#   sudo cp pickupbox-bridge.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now pickupbox-bridge
+#   journalctl -u pickupbox-bridge -f        # live log
+[Unit]
+Description=Smart Pickup Box bridge (LCD + motor lock)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=pi
+SupplementaryGroups=video gpio
+WorkingDirectory=/home/pi/Nova/hardware
+EnvironmentFile=/home/pi/Nova/hardware/bridge.env
+ExecStart=/usr/bin/python3 /home/pi/Nova/hardware/bridge.py
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
