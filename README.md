@@ -23,7 +23,7 @@ laptop's LAN IP. Before the demo, copy `backend/.env.example` to `backend/.env` 
 | Folder | What is in it |
 |---|---|
 | `backend/` | FastAPI + SQLite: the queue, the scheduler, the box states, the pickup codes |
-| `frontend/` | React screens: box display, courier page, simulator, courier dashboard |
+| `frontend/` | React screens: box display, courier page, simulator, courier dashboard, customer page |
 | `hardware/` | Raspberry Pi bridge: LCD, motor latch, QR codes |
 | `display/` | The public online demo: backend + a simple box screen served from one port |
 | `deploy/` | Hosting on our own machine: production plus a live preview per branch |
@@ -40,6 +40,7 @@ server instead; `interface/` is not run by anything.
 | 5173 | React app (`frontend/`): box screens, courier phones, simulator, dashboard |
 | 8081 | Public demo (`display/app.py`): API and box screen from one process, no CORS |
 | 8090 | Preview router (`deploy/preview-router.py`): sends `/` to the demo and `/p/<branch>/` to that branch's preview |
+| 8790 | Laptop llama-server (Gemma): used by report triage |
 
 For the on-site demo every device is on the same Wi-Fi. Open both ports in the laptop's firewall and put
 `http://<LAN-IP>:5173/...` in the QR codes, never `localhost`. Plain HTTP is only for the isolated demo network.
@@ -54,7 +55,7 @@ Open these on the React app (`http://<LAN-IP>:5173`):
 | `/pickup/BOX-01`, `/pickup/BOX-02` | The page the QR code opens: staff mark ready, courier enters the code | B |
 | `/simulator` | Create mock orders, watch the queue, press the fake hardware buttons | B |
 | `/courier` | **Demo only:** read out pickup codes, reset and seed, register staff IDs | D |
-| `/customer/<order-id>` | Customer side: confirm the food arrived, report a problem (UI only, nothing is saved) | B |
+| `/customer/<order-id>` | Confirm receipt (stays in the tab) and report a problem (classified by the laptop model) | B |
 | anything else | Home page: links to every screen plus a live box table | B |
 
 Two more on the backend (`http://<LAN-IP>:8000`): `/docs` for interactive API docs, and
@@ -88,6 +89,14 @@ The code is single-use and expires after `PICKUP_CODE_TTL_MINUTES` (15 by defaul
 holds a hash of it, so a stolen database file does not leak active codes; the courier dashboard
 recalculates them from `PICKUP_CODE_SECRET`, which is stored separately.
 
+## Report triage
+
+The customer page posts free-text complaints to `POST /reports/triage`. The laptop llama-server
+(OpenAI-compatible, default `http://100.110.227.37:8790/v1`, model alias `gemma-4-26b`) returns a
+category (`missing_item` / `wrong_order` / `quality` / `other`), a severity (`low` / `medium` / `high`),
+and a short suggested action. Receipt confirmation still stays in the browser tab; photos are not
+uploaded. If the laptop is unreachable the page shows an error (HTTP 502).
+
 ## Configuration (`backend/.env`)
 
 | Setting | Default | What it does |
@@ -100,6 +109,10 @@ recalculates them from `PICKUP_CODE_SECRET`, which is stored separately.
 | `FAILED_ATTEMPT_COOLDOWN_SECONDS` | `1` | Wait after a wrong code |
 | `PICKUP_CODE_SECRET` | generated | Needed to show codes on the courier dashboard |
 | `CORS_ORIGINS` | `*` | Narrow this down once the demo leaves the isolated network |
+| `TRIAGE_LLM_BASE_URL` | `http://100.110.227.37:8790/v1` | Laptop llama-server for report triage |
+| `TRIAGE_LLM_MODEL` | `gemma-4-26b` | Model id / alias on that server |
+| `TRIAGE_LLM_API_KEY` | empty | Optional bearer token |
+| `TRIAGE_LLM_TIMEOUT` | `25` | Seconds before triage gives up |
 
 ## API (summary)
 
@@ -111,6 +124,7 @@ recalculates them from `PICKUP_CODE_SECRET`, which is stored separately.
 | POST | `/boxes/{id}/staff-confirm` | `{"rfid_uid": "<staff ID>"}` (field name kept) PREPARING -> READY, issues the code |
 | POST | `/boxes/{id}/verify-pickup` | `{"pickup_code": "123456"}` READY -> UNLOCKED on success only |
 | POST | `/boxes/{id}/complete-pickup` | UNLOCKED -> AVAILABLE, next order assigned |
+| POST | `/reports/triage` | `{"order_id", "description", optional "category"}` → `{category, severity, action, model}` |
 | GET | `/health` | Is the backend up? Used by the deploy scripts |
 | GET | `/pickup/{box_id}` | No-build courier page, what the QR tag points at |
 | GET/POST | `/demo/courier-orders`, `/demo/reset`, `/demo/seed`, `/demo/staff` | Demo only, needs `X-Demo-Key` or the API laptop |
@@ -155,4 +169,5 @@ python backend/smoke_test.py --demo-key <DEMO_API_KEY>   # wipes orders; covers 
 - Order data is simulated; codes are demo credentials, not real courier identity.
 - Without a physical lock this is logical verification only.
 - An expired code cannot be re-issued (use reset); `PICKUP_AUTHORIZED` has no timeout.
-- The customer page only looks finished: confirming receipt and reporting a problem save nothing.
+- Report triage needs the laptop llama-server; a down model means classification fails with 502.
+- Receipt confirmation on the customer page still saves nothing.
