@@ -1,19 +1,17 @@
 #!/usr/bin/env bash
 # Create/update/destroy a branch preview at https://novabox.recursivefunctions.dev/p/<slug>/
-# Usage:
-#   deploy-preview.sh upsert <git-ref> [slug]
-#   deploy-preview.sh destroy <slug>
 set -euo pipefail
 
 ACTION="${1:?action required (upsert|destroy)}"
 APPS="${NOVA_APPS:-/home/ray/apps/nova2026}"
 PREVIEWS="$APPS/previews"
-SRC_REPO="${NOVA_ROOT:-/home/ray/code/Nova2026}"
+GIT_URL="${NOVA_GIT_URL:-https://github.com/RecursiveFunctions/Nova2026.git}"
+UV="${UV:-$HOME/.local/bin/uv}"
 PORT_BASE="${NOVA_PREVIEW_PORT_BASE:-8200}"
 PORT_SPAN="${NOVA_PREVIEW_PORT_SPAN:-80}"
 ROUTER_PORT="${NOVA_PREVIEW_ROUTER_PORT:-8090}"
 DOMAIN="${NOVA_PREVIEW_DOMAIN:-novabox.recursivefunctions.dev}"
-RESERVED="main master p boxes pickup orders demo health docs script.js style.css index.html order_qr.png favicon.ico api static assets"
+export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"
 
 slugify() {
   echo "$1" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//; s/-+/-/g' | cut -c1-48
@@ -50,8 +48,15 @@ PY
 stop_preview() {
   local dir="$1"
   if [[ -f "$dir/preview.pid" ]]; then
-    kill "$(cat "$dir/preview.pid")" 2>/dev/null || true
+    local pid; pid="$(cat "$dir/preview.pid")"
+    kill "$pid" 2>/dev/null || true
+    pkill -P "$pid" 2>/dev/null || true
     rm -f "$dir/preview.pid"
+  fi
+  if [[ -f "$dir/meta.json" ]]; then
+    local port
+    port="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("port",""))' "$dir/meta.json" 2>/dev/null || true)"
+    if [[ -n "$port" ]]; then fuser -k "${port}/tcp" 2>/dev/null || true; fi
   fi
 }
 
@@ -71,41 +76,78 @@ if [[ "$ACTION" != "upsert" ]]; then
 fi
 
 REF="${2:?git ref required}"
+REF="${REF#origin/}"
 SLUG="$(slugify "${3:-$REF}")"
-if [[ -z "$SLUG" ]]; then
-  echo "empty slug" >&2
+if [[ -z "$SLUG" || "$SLUG" == "main" || "$SLUG" == "master" ]]; then
+  echo "refusing slug='$SLUG'" >&2
   exit 2
 fi
-for r in $RESERVED; do
-  if [[ "$SLUG" == "$r" ]]; then
-    echo "refusing reserved slug='$SLUG'" >&2
-    exit 2
-  fi
-done
 
 DIR="$PREVIEWS/$SLUG"
 PORT="$(port_for_slug "$SLUG")"
 mkdir -p "$DIR"
 
 if [[ ! -d "$DIR/repo/.git" ]]; then
-  git clone --shared "$SRC_REPO" "$DIR/repo"
+  git clone "$GIT_URL" "$DIR/repo"
 fi
 
 cd "$DIR/repo"
+git remote set-url origin "$GIT_URL"
 git fetch --prune origin
-git checkout --force "$REF" 2>/dev/null || git checkout --force -B "$SLUG" "origin/$REF" 2>/dev/null || git checkout --force "origin/$REF"
-git reset --hard FETCH_HEAD 2>/dev/null || git reset --hard "origin/$REF" 2>/dev/null || git reset --hard HEAD
-if git rev-parse --verify "$REF^{commit}" >/dev/null 2>&1; then
+if git rev-parse --verify "${REF}^{commit}" >/dev/null 2>&1; then
   git checkout --force "$REF"
+elif git rev-parse --verify "origin/${REF}^{commit}" >/dev/null 2>&1; then
+  git checkout --force -B "$SLUG" "origin/$REF"
+else
+  echo "ref not found: $REF" >&2
+  exit 1
 fi
+git reset --hard HEAD
 
 stop_preview "$DIR"
-
+fuser -k "${PORT}/tcp" 2>/dev/null || true
 export DATABASE_PATH="$DIR/pickup_box.db"
 export CORS_ORIGINS="*"
 
-nohup uv run --with fastapi --with uvicorn python display/app.py "$PORT" \
-  >"$DIR/preview.log" 2>&1 &
+if [[ -f display/app.py && -d backend ]]; then
+  nohup "$UV" run --with fastapi --with uvicorn python display/app.py "$PORT" >"$DIR/preview.log" 2>&1 &
+elif [[ -f backend/main.py && -f frontend/package.json ]]; then
+  (cd frontend && npm install --silent && npm run build)
+  cat > "$DIR/run.py" <<PY
+import os, sys
+from pathlib import Path
+repo = Path("$DIR/repo")
+os.environ.setdefault("DATABASE_PATH", "$DIR/pickup_box.db")
+os.environ.setdefault("CORS_ORIGINS", "*")
+os.chdir(repo / "backend")
+sys.path.insert(0, str(repo / "backend"))
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+import main as backend_main
+app = backend_main.app
+app.router.routes[:] = [
+    r for r in app.router.routes
+    if not (getattr(r, "path", None) == "/" and getattr(r, "methods", None) == {"GET"})
+]
+dist = repo / "frontend" / "dist"
+@app.get("/", include_in_schema=False)
+def spa_index():
+    return FileResponse(dist / "index.html")
+app.mount("/", StaticFiles(directory=str(dist), html=True), name="frontend")
+import uvicorn
+uvicorn.run(app, host="0.0.0.0", port=$PORT)
+PY
+  nohup "$UV" run --with fastapi --with uvicorn --with python-multipart python "$DIR/run.py" >"$DIR/preview.log" 2>&1 &
+elif [[ -d display ]]; then
+  nohup python3 -m http.server "$PORT" --directory display >"$DIR/preview.log" 2>&1 &
+elif [[ -d interface ]]; then
+  nohup python3 -m http.server "$PORT" --directory interface >"$DIR/preview.log" 2>&1 &
+elif [[ -d frontend ]]; then
+  (cd frontend && npm install --silent && npm run build)
+  nohup python3 -m http.server "$PORT" --directory frontend/dist >"$DIR/preview.log" 2>&1 &
+else
+  nohup python3 -m http.server "$PORT" --directory . >"$DIR/preview.log" 2>&1 &
+fi
 echo $! >"$DIR/preview.pid"
 
 python3 - <<PY
@@ -123,12 +165,18 @@ Path("$DIR/meta.json").write_text(json.dumps(meta, indent=2) + "\n")
 print(json.dumps(meta))
 PY
 
-for i in $(seq 1 40); do
-  if curl -fsS "http://127.0.0.1:$PORT/health" >/dev/null 2>&1; then
-    break
+ok=0
+for i in $(seq 1 60); do
+  if curl -fsS "http://127.0.0.1:$PORT/" >/dev/null 2>&1 || curl -fsS "http://127.0.0.1:$PORT/health" >/dev/null 2>&1; then
+    ok=1; break
   fi
-  sleep 0.25
+  sleep 0.5
 done
+if [[ "$ok" != "1" ]]; then
+  echo "preview failed to become ready; last log:" >&2
+  tail -n 40 "$DIR/preview.log" >&2 || true
+  exit 1
+fi
 
 ensure_routes
 echo "preview https://$DOMAIN/p/$SLUG/ (port $PORT, router :$ROUTER_PORT)"
