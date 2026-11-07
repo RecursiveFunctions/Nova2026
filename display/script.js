@@ -1,23 +1,34 @@
 
-const order = {
-  id: 1042,
-  priority: "HIGH",
-  eta: "04:00",
-  status: "READY"
-};
+const API_URL = "http://localhost:8000";
+const BOX_ID = "BOX-01";
 
-function updateDisplay() {
-  document.getElementById("order-id").textContent =
-    "#" + order.id;
+async function updateDisplay() {
+  try {
+    const response = await fetch(`${API_URL}/boxes/${BOX_ID}`);
 
-  document.getElementById("priority").textContent =
-    order.priority + " PRIORITY";
+    if (!response.ok) {
+      throw new Error("Could not get box data");
+    }
 
-  document.getElementById("eta").textContent =
-    order.eta;
+    const box = await response.json();
 
-  document.getElementById("status").textContent =
-    order.status;
+    document.getElementById("order-id").textContent =
+      box.order_id ? "#" + box.order_id : "NO ORDER";
+
+    document.getElementById("priority").textContent =
+      box.status === "PREPARING" ? "PREPARING" : "NOVA";
+
+    document.getElementById("eta").textContent = "--:--";
+
+    document.getElementById("status").textContent =
+      box.status;
+
+    console.log("Live box data:", box);
+  } catch (error) {
+    console.error("Backend connection error:", error);
+    document.getElementById("status").textContent = "OFFLINE";
+  }
 }
 
 updateDisplay();
+setInterval(updateDisplay, 2000);
