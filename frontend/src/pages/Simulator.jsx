@@ -253,7 +253,12 @@ function Ledger({ ledger }) {
                   <td>{o.platform}</td>
                   <td>{o.customer_display_name}</td>
                   <td>{summarize(o.items)}</td>
-                  <td>{o.estimated_prep_minutes}m</td>
+                  <td>
+                    {o.estimated_prep_minutes}m
+                    {o.prep_estimated_by && (
+                      <div className="muted small">by {o.prep_estimated_by}</div>
+                    )}
+                  </td>
                   <td>{formatTime(o.pickup_due_at)}</td>
                   <td><strong>{formatTime(o.latest_start_at)}</strong></td>
                   <td><span className={`pill status-${o.status.toLowerCase()}`}>{o.status}</span></td>

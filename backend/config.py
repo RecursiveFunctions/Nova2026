@@ -57,11 +57,20 @@ STAFF_RFID_UIDS = _csv("STAFF_RFID_UIDS", "STAFF-TAG-01")
 CORS_ORIGINS = _csv("CORS_ORIGINS", "*")
 
 # Laptop llama-server (yeetcoder-wsl). Gemma 4 26B-A4B HauhauCS Q4_K_M.
-# Empty TRIAGE_LLM_MODEL picks the Gemma id advertised by /v1/models.
+# Blank TRIAGE_LLM_MODEL uses the llama-server alias started for this demo.
 TRIAGE_LLM_BASE_URL = (os.environ.get("TRIAGE_LLM_BASE_URL") or "http://100.110.227.37:8790/v1").rstrip("/")
-TRIAGE_LLM_MODEL = (os.environ.get("TRIAGE_LLM_MODEL") or "").strip()
+TRIAGE_LLM_MODEL = (os.environ.get("TRIAGE_LLM_MODEL") or "gemma-4-26b").strip()
 TRIAGE_LLM_API_KEY = (os.environ.get("TRIAGE_LLM_API_KEY") or "").strip()
-TRIAGE_LLM_TIMEOUT = float(os.environ.get("TRIAGE_LLM_TIMEOUT") or 90)
+TRIAGE_LLM_TIMEOUT = float(os.environ.get("TRIAGE_LLM_TIMEOUT") or 25)
+
+# Experimental: an order's estimated_prep_minutes is replaced by a laptop-model estimate and
+# prep_estimated_by records the model. Blank PREP_LLM_API_KEY = deterministic path only (submitted
+# prep time kept). Shares the laptop llama-server above; set PREP_LLM_BASE_URL to point elsewhere.
+PREP_LLM_BASE_URL = (os.environ.get("PREP_LLM_BASE_URL") or TRIAGE_LLM_BASE_URL).rstrip("/")
+PREP_LLM_MODEL = (os.environ.get("PREP_LLM_MODEL") or TRIAGE_LLM_MODEL).strip()
+PREP_LLM_API_KEY = (os.environ.get("PREP_LLM_API_KEY") or TRIAGE_LLM_API_KEY).strip()
+PREP_LLM_TIMEOUT = float(os.environ.get("PREP_LLM_TIMEOUT") or 20)
+PREP_ENABLED = (os.environ.get("PREP_ENABLED") or "").strip().lower() in {"1", "true", "yes", "on"}
 
 
 def _pickup_secret() -> bytes:

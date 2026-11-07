@@ -83,12 +83,14 @@ def classify(description: str) -> dict:
     model = _model()
     data = _request("POST", "/chat/completions", {
         "model": model,
-        "temperature": 0.2,
-        "max_tokens": 400,
+        "temperature": 0,
+        "max_tokens": 80,
+        "chat_template_kwargs": {"enable_thinking": False},
         "messages": [{"role": "user", "content": _PROMPT + description.strip()}],
     })
     try:
-        content = data["choices"][0]["message"].get("content") or ""
+        message = data["choices"][0]["message"]
+        content = message.get("content") or message.get("reasoning_content") or ""
     except (KeyError, IndexError, TypeError) as exc:
         raise ApiError(502, "LLM response missing message content") from exc
     result = _parse(content)

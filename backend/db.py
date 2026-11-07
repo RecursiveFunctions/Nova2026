@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS orders (
     estimated_prep_minutes INTEGER NOT NULL CHECK (estimated_prep_minutes > 0),
     pickup_due_at         TEXT NOT NULL,
     latest_start_at       TEXT NOT NULL,  -- pickup_due_at - estimated_prep_minutes (queue priority)
+    prep_estimated_by     TEXT,           -- model name when a model set the prep time, else NULL
     created_at            TEXT NOT NULL,
     status                TEXT NOT NULL DEFAULT 'QUEUED'
                           CHECK (status IN ('QUEUED','PREPARING','READY','PICKUP_AUTHORIZED','COLLECTED')),
@@ -78,8 +79,17 @@ def init_db() -> None:
         conn.execute("PRAGMA journal_mode=WAL")  # readers (screen polling) never block the writer
         _drop_outdated_orders(conn)
         conn.executescript(SCHEMA)
+        _add_missing_columns(conn)
     finally:
         conn.close()
+
+
+def _add_missing_columns(conn) -> None:
+    """Add columns introduced after a database was created (SQLite has no CREATE TABLE IF NOT EXISTS
+    for columns). prep_estimated_by is nullable demo metadata, so existing rows are simply NULL."""
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(orders)")}
+    if cols and "prep_estimated_by" not in cols:
+        conn.execute("ALTER TABLE orders ADD COLUMN prep_estimated_by TEXT")
 
 
 def _drop_outdated_orders(conn) -> None:

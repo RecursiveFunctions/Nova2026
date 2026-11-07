@@ -19,6 +19,7 @@ import secrets
 from datetime import datetime, timedelta, timezone
 
 import config
+import prep_estimate
 
 log = logging.getLogger("pickupbox")
 
@@ -195,7 +196,12 @@ def _new_order_id(conn, platform: str) -> str:
 
 def ingest_orders(conn, payloads: list) -> list:
     """Normalise and insert validated order payloads as QUEUED. Returns the order IDs.
-    Call allocate_boxes() afterwards (kept separate so a batch is prioritised as a whole)."""
+    Call allocate_boxes() afterwards (kept separate so a batch is prioritised as a whole).
+
+    Experimental: when a prep-estimate model is configured, estimated_prep_minutes is replaced by its
+    estimate and prep_estimated_by records the model, so the box screen can credit it. The queue rule
+    itself (latest_start_at) is unchanged. The estimate is fetched before the INSERT and degrades to
+    the submitted time on any failure, so a model outage never blocks an order."""
     ids = []
     for p in payloads:
         platform = canonical_platform(p["platform"])
@@ -205,15 +211,20 @@ def ingest_orders(conn, payloads: list) -> list:
         created = p.get("created_at") or now_utc()
         due = p["pickup_due_at"]
         prep = int(p["estimated_prep_minutes"])
-        start = latest_start(due, prep)
         items = [{"name": i["name"], "quantity": int(i["quantity"])} for i in p["items"]]
+        estimated_by = None
+        estimated = prep_estimate.estimate(items, platform)
+        if estimated is not None:
+            prep, estimated_by = estimated
+        start = latest_start(due, prep)
         conn.execute(
             "INSERT INTO orders (order_id, platform, customer_display_name, items_json, estimated_prep_minutes, "
-            "pickup_due_at, latest_start_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            "pickup_due_at, latest_start_at, created_at, prep_estimated_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (order_id, platform, abbreviate_name(p["customer_display_name"]), json.dumps(items),
-             prep, iso(due), iso(start), iso(created)))
+             prep, iso(due), iso(start), iso(created), estimated_by))
         ids.append(order_id)
-        log.info("%s queued (%s, latest start %s)", order_id, platform, iso(start))
+        log.info("%s queued (%s, latest start %s%s)", order_id, platform, iso(start),
+                 f", prep by {estimated_by}" if estimated_by else "")
     return ids
 
 
@@ -224,6 +235,7 @@ def _order_dict(row, queue_position=None) -> dict:
         "customer_display_name": row["customer_display_name"],
         "items": json.loads(row["items_json"]),
         "estimated_prep_minutes": row["estimated_prep_minutes"],
+        "prep_estimated_by": row["prep_estimated_by"],
         "pickup_due_at": row["pickup_due_at"],
         "latest_start_at": row["latest_start_at"],
         "created_at": row["created_at"],
@@ -284,6 +296,8 @@ def box_screen_view(conn, box_id: str) -> dict:
             items = json.loads(order["items_json"])
             if box["status"] == "PREPARING":
                 view["items"] = items
+                if order["prep_estimated_by"]:
+                    view["prep_estimated_by"] = order["prep_estimated_by"]
             else:
                 view["order_id"] = order["order_id"]
                 view["customer_display_name"] = order["customer_display_name"]

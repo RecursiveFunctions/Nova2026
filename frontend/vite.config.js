@@ -10,7 +10,13 @@ const API_PATHS = ["/orders", "/boxes", "/health", "/demo", "/reports"];
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
   const target = env.API_PROXY_TARGET || "http://127.0.0.1:8000";
-  const proxy = Object.fromEntries(API_PATHS.map((p) => [p, { target, changeOrigin: true, xfwd: true }]));
+  const proxy = Object.fromEntries(API_PATHS.map((p) => [p, {
+    target,
+    changeOrigin: true,
+    xfwd: true,
+    timeout: 120000,
+    proxyTimeout: 120000,
+  }]));
   return {
     plugins: [react()],
     server: { host: true, port: 5173, strictPort: true, proxy },

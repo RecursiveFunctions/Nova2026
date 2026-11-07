@@ -51,6 +51,9 @@ function renderState(box) {
               </li>
             ))}
           </ul>
+          {box.prep_estimated_by && (
+            <p className="screen-sub">Time estimated by {box.prep_estimated_by}</p>
+          )}
         </>
       );
     case "READY":
