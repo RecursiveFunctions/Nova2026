@@ -43,7 +43,8 @@ def estimate(items: list, platform: str = "") -> tuple | None:
     body = json.dumps({
         "messages": [{"role": "user", "content": prompt}],
         "temperature": 0,
-        "max_tokens": 40,
+        "max_tokens": 60,
+        "chat_template_kwargs": {"enable_thinking": False},
     }).encode()
     headers = {"Content-Type": "application/json"}
     if config.PREP_LLM_API_KEY:
@@ -54,6 +55,10 @@ def estimate(items: list, platform: str = "") -> tuple | None:
         with urllib.request.urlopen(request, timeout=config.PREP_LLM_TIMEOUT) as response:
             payload = json.loads(response.read())
         content = payload["choices"][0]["message"]["content"] or ""
+        if not content:
+            # Gemma on llama-server writes its answer into reasoning_content unless thinking is
+            # disabled; triage.py hit the same thing. Ask for no thinking and read both fields.
+            content = payload["choices"][0]["message"].get("reasoning_content") or ""
         model_used = payload.get("model") or config.PREP_LLM_MODEL or "laptop model"
     except (urllib.error.URLError, OSError, ValueError, KeyError, IndexError, TypeError) as err:
         log.warning("prep estimate unavailable (%s); using submitted prep time", err)
