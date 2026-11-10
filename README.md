@@ -4,6 +4,8 @@ Delivery orders from mock apps land in one queue. The box closest to its deadlin
 The box screen shows the food while it is being prepared, staff tap their ID to mark it ready and lock
 the latch, and the courier opens the box by typing a one-time code into the page behind the box's QR code.
 
+**Presentation:** https://canva.link/861erdms151zwxh
+
 ## Start everything (one command)
 
 Needs Python 3.11+ and Node 18+.
